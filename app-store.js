@@ -192,75 +192,55 @@ async function installApp(app) {
     }
 
     if (cockpit) {
-      const installDir = `/opt/container-apps/${app.id}`;
+        // === INSTALAÇÃO VIA COCKPIT - USANDO cockpit.script() ===
+        const installDir = `/opt/container-apps/${app.id}`;
 
-      // === COMANDO CORRIGIDO COM PATH ABSOLUTO ===
-      // Primeiro, vamos descobrir onde está o docker
-      const whichDocker = await cockpit.spawn(['which', 'docker'], { 
-        superuser: 'try',
-        err: 'out'
-      }).catch(() => '/usr/bin/docker');
-      
-      const dockerPath = whichDocker.trim() || '/usr/bin/docker';
-      console.log('Docker encontrado em:', dockerPath);
+        // Cria um script shell completo
+        const script = `
+        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        set -e
+        APP_ID='${app.id}'
+        DEST_DIR="${installDir}"
 
-      // Script com PATH absoluto para o docker
-      const script = `
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-set -e
-APP_ID='${app.id}'
-DEST_DIR="${installDir}"
+        echo "📁 Criando diretório: $DEST_DIR"
+        mkdir -p "$DEST_DIR"
 
-echo "📁 Criando diretório: $DEST_DIR"
-mkdir -p "$DEST_DIR"
+        echo "📥 Baixando arquivos do app ${app.name}..."
+        curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
+        curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
+        curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
 
-echo "📥 Baixando arquivos do app ${app.name}..."
-curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
-curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
-curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
+        echo "📄 Arquivos baixados com sucesso!"
+        cd "$DEST_DIR"
+        echo "📋 Conteúdo do diretório:"
+        ls -la
 
-echo "📄 Arquivos baixados com sucesso!"
-cd "$DEST_DIR"
-echo "📋 Conteúdo do diretório:"
-ls -la
+        echo "🐳 Iniciando container com Docker Compose..."
+        /usr/bin/docker compose up -d
 
-echo "🐳 Iniciando container com Docker Compose..."
-${dockerPath} compose up -d
+        echo "✅ Instalação concluída para $APP_ID"
+        echo "📍 Container instalado em: $DEST_DIR"
+        `;
 
-echo "✅ Instalação concluída para $APP_ID"
-echo "📍 Container instalado em: $DEST_DIR"
-`;
+        status.textContent = '⏳ Executando comandos no servidor...';
+        logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
-      status.textContent = '⏳ Executando comandos no servidor...';
-      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+        try {
+            // Usa cockpit.script para executar o script diretamente
+            const proc = await cockpit.script(script, {
+            superuser: 'require',
+            err: 'out'
+            });
 
-      // Executa com sh -c
-      const proc = await cockpit.spawn(
-        ['sh', '-c', script],
-        {
-          superuser: 'require',
-          err: 'out'
+            const output = proc.trim() || '✅ Comando executado sem saída.';
+            logOutput.textContent = output;
+            status.textContent = '✅ Instalação concluída com sucesso!';
+            status.style.color = 'var(--accent)';
+
+        } catch (scriptError) {
+            console.error('Erro no cockpit.script:', scriptError);
+            throw scriptError;
         }
-      );
-
-      const output = proc.trim() || '✅ Comando executado sem saída.';
-      logOutput.textContent = output;
-      status.textContent = '✅ Instalação concluída com sucesso!';
-      status.style.color = 'var(--accent)';
-
-    } else {
-      // Fallback manual
-      const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
-        `mkdir -p /opt/container-apps/${app.id} && \\\n` +
-        `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o /opt/container-apps/${app.id}/metadata.yaml && \\\n` +
-        `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o /opt/container-apps/${app.id}/docker-compose.yml && \\\n` +
-        `curl -fsSL ${repo}/apps/${app.id}/config.yml -o /opt/container-apps/${app.id}/config.yml && \\\n` +
-        `cd /opt/container-apps/${app.id} && \\\n` +
-        `docker compose up -d`;
-      
-      logOutput.textContent = fallbackMsg;
-      status.textContent = '⚠️ Cockpit não disponível. Comando manual gerado.';
-      status.style.color = '#ffd93d';
     }
 
   } catch (error) {
