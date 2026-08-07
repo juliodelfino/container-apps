@@ -351,3 +351,53 @@ select {
     padding: 18px;
   }
 }
+
+/* Estilos para o modal */
+.modal-overlay {
+  animation: fadeIn 0.2s ease;
+}
+
+.config-modal {
+  animation: slideUp 0.3s ease;
+}
+
+.config-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(94, 231, 212, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos para scroll do modal */
+.config-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.config-modal::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+}
+
+.config-modal::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.config-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

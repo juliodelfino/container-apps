@@ -155,7 +155,164 @@ function renderDetail(app) {
   detailCard.querySelector('.install-button').addEventListener('click', () => installApp(app));
 }
 
+function showConfigModal(app) {
+  return new Promise((resolve) => {
+    // Cria o overlay do modal
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(4px);
+    `;
+
+    // Cria o modal
+    const modal = document.createElement('div');
+    modal.className = 'config-modal';
+    modal.style.cssText = `
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+
+    // Cabeçalho do modal
+    modal.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: var(--text);">Configurar ${app.name}</h2>
+        <button class="modal-close" style="
+          background: transparent;
+          border: none;
+          color: var(--muted);
+          font-size: 1.5rem;
+          cursor: pointer;
+          padding: 0 8px;
+        ">✕</button>
+      </div>
+      <p style="color: var(--muted); margin-bottom: 24px;">
+        Ajuste as variáveis de ambiente antes da instalação. Valores padrão serão usados se não forem alterados.
+      </p>
+      <div id="config-fields" style="display: flex; flex-direction: column; gap: 16px;">
+        ${Object.entries(app.default_config || {}).map(([key, value]) => `
+          <div class="config-field">
+            <label for="config-${key}" style="
+              display: block;
+              margin-bottom: 4px;
+              color: var(--text);
+              font-weight: 500;
+              font-size: 0.9rem;
+            ">${key}</label>
+            <input id="config-${key}" type="text" value="${value}" style="
+              width: 100%;
+              padding: 10px 14px;
+              border-radius: 12px;
+              border: 1px solid var(--border);
+              background: rgba(255,255,255,0.05);
+              color: var(--text);
+              font-family: monospace;
+              font-size: 0.9rem;
+              transition: border-color 0.2s;
+            ">
+            <div style="
+              font-size: 0.8rem;
+              color: var(--muted);
+              margin-top: 4px;
+            ">Valor padrão: ${value}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;">
+        <button class="btn btn--secondary modal-cancel" style="
+          padding: 10px 24px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: transparent;
+          color: var(--text);
+          cursor: pointer;
+        ">Cancelar</button>
+        <button class="btn btn--primary modal-install" style="
+          padding: 10px 24px;
+          border-radius: 999px;
+          background: var(--accent);
+          color: #03211d;
+          border: none;
+          font-weight: 700;
+          cursor: pointer;
+        ">Instalar com estas configurações</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Fecha o modal ao clicar no overlay (mas não no modal)
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+        resolve(null);
+      }
+    });
+
+    // Fecha o modal ao clicar no X
+    modal.querySelector('.modal-close').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(null);
+    });
+
+    // Fecha ao clicar em Cancelar
+    modal.querySelector('.modal-cancel').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(null);
+    });
+
+    // Confirma a instalação
+    modal.querySelector('.modal-install').addEventListener('click', () => {
+      // Coleta os valores dos campos
+      const config = {};
+      Object.keys(app.default_config || {}).forEach(key => {
+        const input = document.getElementById(`config-${key}`);
+        if (input) {
+          config[key] = input.value.trim() || app.default_config[key];
+        }
+      });
+      
+      document.body.removeChild(overlay);
+      resolve(config);
+    });
+
+    // Aplica foco no primeiro campo
+    const firstInput = modal.querySelector('input');
+    if (firstInput) {
+      setTimeout(() => firstInput.focus(), 100);
+    }
+  });
+}
+
 async function installApp(app) {
+  // Mostra o modal de configuração
+  const config = await showConfigModal(app);
+  
+  // Se o usuário cancelou, interrompe a instalação
+  if (config === null) {
+    const status = document.getElementById('install-status');
+    status.textContent = '⏸️ Instalação cancelada pelo usuário.';
+    status.style.color = '#ffd93d';
+    return;
+  }
+
   const status = document.getElementById('install-status');
   const installButton = detailCard.querySelector('.install-button');
   
@@ -165,7 +322,7 @@ async function installApp(app) {
   }
 
   logOutput.textContent = '';
-  status.textContent = '🚀 Iniciando instalação no servidor...';
+  status.textContent = '🚀 Iniciando instalação com configurações personalizadas...';
   showInstallToast();
 
   try {
@@ -192,55 +349,68 @@ async function installApp(app) {
     }
 
     if (cockpit) {
-        // === INSTALAÇÃO VIA COCKPIT - USANDO cockpit.script() ===
-        const installDir = `/opt/container-apps/${app.id}`;
+      const installDir = `/opt/container-apps/${app.id}`;
 
-        // Cria um script shell completo
-        const script = `
-        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        set -e
-        APP_ID='${app.id}'
-        DEST_DIR="${installDir}"
+      // Cria as variáveis de ambiente para o script
+      const envVars = Object.entries(config)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(' ');
 
-        echo "📁 Criando diretório: $DEST_DIR"
-        mkdir -p "$DEST_DIR"
+      // Cria um script shell completo com as variáveis
+      const script = `
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+set -e
+APP_ID='${app.id}'
+DEST_DIR="${installDir}"
 
-        echo "📥 Baixando arquivos do app ${app.name}..."
-        curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
-        curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
-        curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
+echo "📁 Criando diretório: $DEST_DIR"
+mkdir -p "$DEST_DIR"
 
-        echo "📄 Arquivos baixados com sucesso!"
-        cd "$DEST_DIR"
-        echo "📋 Conteúdo do diretório:"
-        ls -la
+echo "📥 Baixando arquivos do app ${app.name}..."
+curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
+curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
+curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
 
-        echo "🐳 Iniciando container com Docker Compose..."
-        /usr/bin/docker compose up -d
+echo "📄 Arquivos baixados com sucesso!"
+cd "$DEST_DIR"
+echo "📋 Conteúdo do diretório:"
+ls -la
 
-        echo "✅ Instalação concluída para $APP_ID"
-        echo "📍 Container instalado em: $DEST_DIR"
-        `;
+echo "🔄 Substituindo variáveis no docker-compose.yml..."
+${Object.entries(config).map(([key, value]) => 
+  `sed -i 's/\${${key}:-[^}]*}/${value}/g' docker-compose.yml`
+).join('\n')}
 
-        status.textContent = '⏳ Executando comandos no servidor...';
-        logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+echo "🐳 Iniciando container com Docker Compose..."
+${envVars} /usr/bin/docker compose up -d
 
-        try {
-            // Usa cockpit.script para executar o script diretamente
-            const proc = await cockpit.script(script, {
-            superuser: 'require',
-            err: 'out'
-            });
+echo "✅ Instalação concluída para $APP_ID"
+echo "📍 Container instalado em: $DEST_DIR"
+echo "📋 Configurações aplicadas:"
+${Object.entries(config).map(([key, value]) => 
+  `echo "  ${key}=${value}"`
+).join('\n')}
+`;
 
-            const output = proc.trim() || '✅ Comando executado sem saída.';
-            logOutput.textContent = output;
-            status.textContent = '✅ Instalação concluída com sucesso!';
-            status.style.color = 'var(--accent)';
+      status.textContent = '⏳ Executando comandos no servidor...';
+      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+      logOutput.textContent += `> Configurações: ${JSON.stringify(config, null, 2)}\n\n`;
 
-        } catch (scriptError) {
-            console.error('Erro no cockpit.script:', scriptError);
-            throw scriptError;
-        }
+      try {
+        const proc = await cockpit.script(script, {
+          superuser: 'require',
+          err: 'out'
+        });
+
+        const output = proc.trim() || '✅ Comando executado sem saída.';
+        logOutput.textContent = output;
+        status.textContent = '✅ Instalação concluída com sucesso!';
+        status.style.color = 'var(--accent)';
+
+      } catch (scriptError) {
+        console.error('Erro no cockpit.script:', scriptError);
+        throw scriptError;
+      }
     }
 
   } catch (error) {
