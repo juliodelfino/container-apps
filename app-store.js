@@ -3,12 +3,13 @@ const detailCard = document.getElementById('detail-card');
 const searchInput = document.getElementById('search');
 const categorySelect = document.getElementById('category');
 const countLabel = document.getElementById('count');
-const logModal = document.getElementById('log-modal');
+const installToast = document.getElementById('install-toast');
 const logOutput = document.getElementById('log-output');
-const closeLogModal = document.getElementById('close-log-modal');
+const closeInstallToast = document.getElementById('close-install-toast');
 
 let apps = [];
 let selectedAppId = null;
+let toastTimer = null;
 
 async function loadApps() {
   try {
@@ -162,7 +163,7 @@ async function installApp(app) {
   }
 
   status.textContent = 'Iniciando instalação no servidor...';
-  openLogModal();
+  showInstallToast();
   logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
   try {
@@ -201,21 +202,27 @@ async function installApp(app) {
   }
 }
 
-function openLogModal() {
+function showInstallToast() {
   logOutput.textContent = '';
-  logModal.hidden = false;
-}
+  installToast.hidden = false;
 
-function closeLogModalHandler() {
-  logModal.hidden = true;
-}
-
-closeLogModal.addEventListener('click', closeLogModalHandler);
-logModal.addEventListener('click', (event) => {
-  if (event.target === logModal) {
-    closeLogModalHandler();
+  if (toastTimer) {
+    window.clearTimeout(toastTimer);
   }
-});
+
+  toastTimer = window.setTimeout(() => {
+    installToast.hidden = true;
+  }, 10000);
+}
+
+function closeInstallToastHandler() {
+  installToast.hidden = true;
+  if (toastTimer) {
+    window.clearTimeout(toastTimer);
+  }
+}
+
+closeInstallToast.addEventListener('click', closeInstallToastHandler);
 
 function categoryLabel(category) {
   const map = {

@@ -56,14 +56,12 @@
       </section>
     </main>
 
-    <div id="log-modal" class="log-modal" hidden>
-      <div class="log-modal__content">
-        <div class="log-modal__header">
-          <h3>Logs da instalação</h3>
-          <button id="close-log-modal" class="btn btn--secondary">Fechar</button>
-        </div>
-        <pre id="log-output" class="log-output"></pre>
+    <div id="install-toast" class="install-toast" role="status" aria-live="polite" hidden>
+      <div class="install-toast__header">
+        <strong>Logs da instalação</strong>
+        <button id="close-install-toast" class="install-toast__close" type="button" aria-label="Fechar">×</button>
       </div>
+      <pre id="log-output" class="log-output"></pre>
     </div>
 
     <script src="./app-store.js"></script>
