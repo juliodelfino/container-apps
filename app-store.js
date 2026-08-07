@@ -155,8 +155,31 @@ function renderDetail(app) {
   detailCard.querySelector('.install-button').addEventListener('click', () => installApp(app));
 }
 
-function showConfigModal(app) {
-  return new Promise((resolve) => {
+async function showConfigModal(app) {
+  return new Promise(async (resolve) => {
+    // Busca o config.yml do app
+    let configSchema = null;
+    try {
+      const response = await fetch(`${repo}/apps/${app.id}/config.yml`);
+      if (response.ok) {
+        const yamlText = await response.text();
+        // Parse simples do YAML (apenas para este caso específico)
+        configSchema = parseYamlConfig(yamlText);
+      }
+    } catch (e) {
+      console.warn('Não foi possível carregar config.yml, usando fallback:', e);
+    }
+
+    // Se não conseguiu carregar, usa o default_config do apps.json
+    const fields = configSchema?.groups?.[0]?.fields || 
+      Object.keys(app.default_config || {}).map(key => ({
+        id: key,
+        type: 'string',
+        default: app.default_config[key],
+        required: true,
+        label: key
+      }));
+
     // Cria o overlay do modal
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -182,7 +205,7 @@ function showConfigModal(app) {
       border: 1px solid var(--border);
       border-radius: 24px;
       padding: 32px;
-      max-width: 600px;
+      max-width: 650px;
       width: 90%;
       max-height: 80vh;
       overflow-y: auto;
@@ -192,7 +215,12 @@ function showConfigModal(app) {
     // Cabeçalho do modal
     modal.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 style="margin: 0; color: var(--text);">Configurar ${app.name}</h2>
+        <div>
+          <h2 style="margin: 0; color: var(--text);">Configurar ${app.name}</h2>
+          ${configSchema?.groups?.[0]?.description ? 
+            `<p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">${configSchema.groups[0].description}</p>` : 
+            ''}
+        </div>
         <button class="modal-close" style="
           background: transparent;
           border: none;
@@ -200,37 +228,66 @@ function showConfigModal(app) {
           font-size: 1.5rem;
           cursor: pointer;
           padding: 0 8px;
+          transition: color 0.2s;
         ">✕</button>
       </div>
-      <p style="color: var(--muted); margin-bottom: 24px;">
+      <p style="color: var(--muted); margin-bottom: 24px; font-size: 0.95rem;">
         Ajuste as variáveis de ambiente antes da instalação. Valores padrão serão usados se não forem alterados.
       </p>
       <div id="config-fields" style="display: flex; flex-direction: column; gap: 16px;">
-        ${Object.entries(app.default_config || {}).map(([key, value]) => `
-          <div class="config-field">
-            <label for="config-${key}" style="
-              display: block;
-              margin-bottom: 4px;
-              color: var(--text);
-              font-weight: 500;
-              font-size: 0.9rem;
-            ">${key}</label>
-            <input id="config-${key}" type="text" value="${value}" style="
-              width: 100%;
-              padding: 10px 14px;
-              border-radius: 12px;
-              border: 1px solid var(--border);
-              background: rgba(255,255,255,0.05);
-              color: var(--text);
-              font-family: monospace;
-              font-size: 0.9rem;
-              transition: border-color 0.2s;
-            ">
+        ${fields.map(field => `
+          <div class="config-field" style="
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="config-${field.id}" style="
+                color: var(--text);
+                font-weight: 500;
+                font-size: 0.9rem;
+              ">${field.label || field.id}</label>
+              ${field.required ? 
+                `<span style="color: #ff6b6b; font-size: 0.8rem;">*obrigatório</span>` : 
+                `<span style="color: var(--muted); font-size: 0.8rem;">opcional</span>`}
+            </div>
+            ${field.type === 'enum' ? `
+              <select id="config-${field.id}" style="
+                width: 100%;
+                padding: 10px 14px;
+                border-radius: 12px;
+                border: 1px solid var(--border);
+                background: rgba(255,255,255,0.05);
+                color: var(--text);
+                font-size: 0.9rem;
+                transition: border-color 0.2s;
+              ">
+                ${(field.options || []).map(opt => `
+                  <option value="${opt}" ${opt === field.default ? 'selected' : ''}>${opt}</option>
+                `).join('')}
+              </select>
+            ` : `
+              <input id="config-${field.id}" type="${field.type === 'integer' ? 'number' : 'text'}" 
+                value="${field.default || ''}" 
+                ${field.type === 'integer' ? `min="${field.min || 1}" max="${field.max || 65535}"` : ''}
+                style="
+                  width: 100%;
+                  padding: 10px 14px;
+                  border-radius: 12px;
+                  border: 1px solid var(--border);
+                  background: rgba(255,255,255,0.05);
+                  color: var(--text);
+                  font-family: monospace;
+                  font-size: 0.9rem;
+                  transition: border-color 0.2s;
+                ">
+            `}
             <div style="
               font-size: 0.8rem;
               color: var(--muted);
               margin-top: 4px;
-            ">Valor padrão: ${value}</div>
+            ">Valor padrão: ${field.default || 'não definido'}</div>
           </div>
         `).join('')}
       </div>
@@ -242,6 +299,7 @@ function showConfigModal(app) {
           background: transparent;
           color: var(--text);
           cursor: pointer;
+          transition: all 0.2s;
         ">Cancelar</button>
         <button class="btn btn--primary modal-install" style="
           padding: 10px 24px;
@@ -251,6 +309,7 @@ function showConfigModal(app) {
           border: none;
           font-weight: 700;
           cursor: pointer;
+          transition: all 0.2s;
         ">Instalar com estas configurações</button>
       </div>
     `;
@@ -258,47 +317,136 @@ function showConfigModal(app) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
+    // Função para fechar o modal
+    function closeModal() {
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      resolve(null);
+    }
+
     // Fecha o modal ao clicar no overlay (mas não no modal)
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        document.body.removeChild(overlay);
-        resolve(null);
-      }
+      if (e.target === overlay) closeModal();
     });
 
     // Fecha o modal ao clicar no X
-    modal.querySelector('.modal-close').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve(null);
-    });
+    modal.querySelector('.modal-close').addEventListener('click', closeModal);
 
     // Fecha ao clicar em Cancelar
-    modal.querySelector('.modal-cancel').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve(null);
-    });
+    modal.querySelector('.modal-cancel').addEventListener('click', closeModal);
 
     // Confirma a instalação
     modal.querySelector('.modal-install').addEventListener('click', () => {
       // Coleta os valores dos campos
       const config = {};
-      Object.keys(app.default_config || {}).forEach(key => {
-        const input = document.getElementById(`config-${key}`);
+      fields.forEach(field => {
+        const input = document.getElementById(`config-${field.id}`);
         if (input) {
-          config[key] = input.value.trim() || app.default_config[key];
+          const value = input.value.trim();
+          config[field.id] = value || field.default || '';
         }
       });
       
-      document.body.removeChild(overlay);
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
       resolve(config);
     });
 
     // Aplica foco no primeiro campo
-    const firstInput = modal.querySelector('input');
+    const firstInput = modal.querySelector('input, select');
     if (firstInput) {
       setTimeout(() => firstInput.focus(), 100);
     }
+
+    // Efeito hover nos botões
+    modal.querySelector('.modal-install').addEventListener('mouseenter', (e) => {
+      e.target.style.transform = 'translateY(-2px)';
+      e.target.style.boxShadow = '0 8px 24px rgba(94, 231, 212, 0.3)';
+    });
+    modal.querySelector('.modal-install').addEventListener('mouseleave', (e) => {
+      e.target.style.transform = 'none';
+      e.target.style.boxShadow = 'none';
+    });
   });
+}
+
+// Função auxiliar para parse simples de YAML
+function parseYamlConfig(yamlText) {
+  const result = { groups: [{ fields: [] }] };
+  const lines = yamlText.split('\n');
+  let currentGroup = null;
+  let currentField = null;
+  let inFields = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith('#')) continue;
+
+    if (line === 'groups:') {
+      continue;
+    } else if (line.startsWith('- id:')) {
+      currentGroup = { fields: [] };
+      const match = line.match(/id:\s*(.+)/);
+      if (match) currentGroup.id = match[1].trim();
+    } else if (line.startsWith('label:') && currentGroup) {
+      const match = line.match(/label:\s*(.+)/);
+      if (match) currentGroup.label = match[1].trim();
+    } else if (line.startsWith('description:') && currentGroup) {
+      const match = line.match(/description:\s*(.+)/);
+      if (match) currentGroup.description = match[1].trim();
+    } else if (line === 'fields:') {
+      inFields = true;
+    } else if (inFields && line.startsWith('- id:')) {
+      currentField = {};
+      const match = line.match(/id:\s*(.+)/);
+      if (match) currentField.id = match[1].trim();
+    } else if (inFields && currentField) {
+      if (line.startsWith('label:')) {
+        const match = line.match(/label:\s*(.+)/);
+        if (match) currentField.label = match[1].trim();
+      } else if (line.startsWith('type:')) {
+        const match = line.match(/type:\s*(.+)/);
+        if (match) currentField.type = match[1].trim();
+      } else if (line.startsWith('default:')) {
+        const match = line.match(/default:\s*(.+)/);
+        if (match) currentField.default = match[1].trim();
+      } else if (line.startsWith('required:')) {
+        const match = line.match(/required:\s*(.+)/);
+        if (match) currentField.required = match[1].trim() === 'true';
+      } else if (line.startsWith('min:')) {
+        const match = line.match(/min:\s*(.+)/);
+        if (match) currentField.min = parseInt(match[1].trim());
+      } else if (line.startsWith('max:')) {
+        const match = line.match(/max:\s*(.+)/);
+        if (match) currentField.max = parseInt(match[1].trim());
+      } else if (line.startsWith('options:')) {
+        const match = line.match(/options:\s*\[(.*)\]/);
+        if (match) {
+          currentField.options = match[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
+        }
+      } else if (!line.startsWith(' ') && !line.startsWith('\t')) {
+        // Fim do campo
+        if (currentGroup && currentField) {
+          currentGroup.fields.push(currentField);
+          currentField = null;
+        }
+        inFields = false;
+      }
+    }
+  }
+
+  // Adiciona o último campo
+  if (currentGroup && currentField) {
+    currentGroup.fields.push(currentField);
+  }
+
+  if (currentGroup && currentGroup.fields.length > 0) {
+    result.groups = [currentGroup];
+  }
+
+  return result;
 }
 
 async function installApp(app) {
@@ -376,13 +524,16 @@ cd "$DEST_DIR"
 echo "📋 Conteúdo do diretório:"
 ls -la
 
-echo "🔄 Substituindo variáveis no docker-compose.yml..."
+echo "🔄 Gerando arquivo .env com as configurações..."
 ${Object.entries(config).map(([key, value]) => 
-  `sed -i 's/\${${key}:-[^}]*}/${value}/g' docker-compose.yml`
+  `echo "${key}=${value}" >> .env`
 ).join('\n')}
 
+echo "📋 Arquivo .env criado:"
+cat .env
+
 echo "🐳 Iniciando container com Docker Compose..."
-${envVars} /usr/bin/docker compose up -d
+/usr/bin/docker compose --env-file .env up -d
 
 echo "✅ Instalação concluída para $APP_ID"
 echo "📍 Container instalado em: $DEST_DIR"
