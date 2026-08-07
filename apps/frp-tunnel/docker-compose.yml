@@ -4,7 +4,7 @@ services:
     container_name: frp-server
     restart: "no"
     network_mode: host
-    profiles: ["server"]  # Adicione esta linha
+    profiles: ["server"]
     volumes:
       - ./data:/etc/frp
       - ./logs:/var/log/frp
@@ -18,7 +18,7 @@ services:
     container_name: frp-client
     restart: "no"
     network_mode: host
-    profiles: ["client"]  # Adicione esta linha
+    profiles: ["client"]
     volumes:
       - ./data:/etc/frp
       - ./logs:/var/log/frp

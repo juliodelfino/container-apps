@@ -1,24 +1,10 @@
 # container-apps
 
-Repositório de catálogo de apps containerizados, preparado para integrar com uma loja de apps compatível com Cockpit e com o fluxo de empacotamento do projeto container-packaging-tools.
+Repositório de catálogo de apps containerizados, preparado para integrar no Cockpit juntamente com o cockpit-compose
 
-## Estrutura
-
-- `catalog.json` — catálogo principal com os apps disponíveis.
-- `apps/` — diretórios com manifestos de cada app.
-  - `metadata.yaml` — metadados do pacote.
-  - `docker-compose.yml` — definição do container.
-  - `config.yml` — esquema de configuração.
-
-## Formato esperado
-
-Cada app é descrito por um bloco em `catalog.json` com:
-
-- `id`
-- `name`
-- `package_name`
-- `version`
-- `category`
-- `homepage`
-- `license`
-- `manifest`
+## Como instalar no cockpit:
+```bash
+cd /usr/share/cockpit/
+git clone https://github.com/juliodelfino/container-apps.git
+sudo systemctl restart cockpit
+```
