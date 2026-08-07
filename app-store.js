@@ -159,7 +159,6 @@ async function installApp(app) {
   const status = document.getElementById('install-status');
   const installButton = detailCard.querySelector('.install-button');
   
-  // Desabilita o botão
   if (installButton) {
     installButton.disabled = true;
     installButton.textContent = 'Instalando...';
@@ -170,19 +169,13 @@ async function installApp(app) {
   showInstallToast();
 
   try {
-    // === VERIFICAÇÃO CORRETA DO COCKPIT ===
     let cockpit = null;
     try {
-      // Tenta obter o cockpit do parent (iframe)
       if (window.parent && window.parent.cockpit) {
         cockpit = window.parent.cockpit;
-      } 
-      // Tenta do window atual
-      else if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+      } else if (window.cockpit && typeof window.cockpit.spawn === 'function') {
         cockpit = window.cockpit;
-      }
-      // Tenta carregar dinamicamente
-      else {
+      } else {
         const script = document.createElement('script');
         script.src = '/cockpit/static/base1/cockpit.js';
         await new Promise((resolve, reject) => {
@@ -199,69 +192,93 @@ async function installApp(app) {
     }
 
     if (cockpit) {
-        // === INSTALAÇÃO VIA COCKPIT - VERSÃO CORRIGIDA ===
-        const installDir = `/opt/container-apps/${app.id}`;
+      const installDir = `/opt/container-apps/${app.id}`;
 
-        // Usa cockpit.script para executar um script shell completo
-        // Define explicitamente o PATH para garantir que o docker seja encontrado
-        const script = `
-        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        set -e
-        APP_ID='${app.id}'
-        DEST_DIR="${installDir}"
+      // === COMANDO CORRIGIDO COM PATH ABSOLUTO ===
+      // Primeiro, vamos descobrir onde está o docker
+      const whichDocker = await cockpit.spawn(['which', 'docker'], { 
+        superuser: 'try',
+        err: 'out'
+      }).catch(() => '/usr/bin/docker');
+      
+      const dockerPath = whichDocker.trim() || '/usr/bin/docker';
+      console.log('Docker encontrado em:', dockerPath);
 
-        echo "📁 Criando diretório: $DEST_DIR"
-        mkdir -p "$DEST_DIR"
+      // Script com PATH absoluto para o docker
+      const script = `
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+set -e
+APP_ID='${app.id}'
+DEST_DIR="${installDir}"
 
-        echo "📥 Baixando arquivos do app ${app.name}..."
-        curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
-        curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
-        curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
+echo "📁 Criando diretório: $DEST_DIR"
+mkdir -p "$DEST_DIR"
 
-        echo "📄 Arquivos baixados com sucesso!"
-        cd "$DEST_DIR"
-        echo "📋 Conteúdo do diretório:"
-        ls -la
+echo "📥 Baixando arquivos do app ${app.name}..."
+curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
+curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
+curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
 
-        echo "🐳 Iniciando container com Docker Compose..."
-        docker compose up -d
+echo "📄 Arquivos baixados com sucesso!"
+cd "$DEST_DIR"
+echo "📋 Conteúdo do diretório:"
+ls -la
 
-        echo "✅ Instalação concluída para $APP_ID"
-        `;
+echo "🐳 Iniciando container com Docker Compose..."
+${dockerPath} compose up -d
 
-        status.textContent = '⏳ Executando comandos no servidor...';
-        logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+echo "✅ Instalação concluída para $APP_ID"
+echo "📍 Container instalado em: $DEST_DIR"
+`;
 
-        // Executa o script como um comando único
-        // Usar 'sh' com '-c' garante que o script seja interpretado
-        const proc = await cockpit.spawn(
-            ['sh', '-c', script],
-            {
-            superuser: 'require', // Força execução como root
-            err: 'out' // Inclui stderr na saída para melhor diagnóstico
-            }
-        );
+      status.textContent = '⏳ Executando comandos no servidor...';
+      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
-        // Exibe a saída completa
-        const output = proc.trim() || '✅ Comando executado sem saída.';
-        logOutput.textContent = output;
-        status.textContent = '✅ Instalação concluída com sucesso!';
-        status.style.color = 'var(--accent)';
+      // Executa com sh -c
+      const proc = await cockpit.spawn(
+        ['sh', '-c', script],
+        {
+          superuser: 'require',
+          err: 'out'
+        }
+      );
+
+      const output = proc.trim() || '✅ Comando executado sem saída.';
+      logOutput.textContent = output;
+      status.textContent = '✅ Instalação concluída com sucesso!';
+      status.style.color = 'var(--accent)';
+
+    } else {
+      // Fallback manual
+      const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
+        `mkdir -p /opt/container-apps/${app.id} && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o /opt/container-apps/${app.id}/metadata.yaml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o /opt/container-apps/${app.id}/docker-compose.yml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/config.yml -o /opt/container-apps/${app.id}/config.yml && \\\n` +
+        `cd /opt/container-apps/${app.id} && \\\n` +
+        `docker compose up -d`;
+      
+      logOutput.textContent = fallbackMsg;
+      status.textContent = '⚠️ Cockpit não disponível. Comando manual gerado.';
+      status.style.color = '#ffd93d';
     }
 
   } catch (error) {
     console.error('Erro na instalação:', error);
+    
     let errorMsg = error.message || 'Erro desconhecido';
     
-    if (errorMsg.includes('permission denied')) {
+    if (errorMsg.includes('not-found')) {
+      errorMsg = 'Comando não encontrado. Verifique se o Docker está instalado.';
+    } else if (errorMsg.includes('permission denied')) {
       errorMsg = 'Permissão negada. Execute como root ou verifique permissões.';
     } else if (errorMsg.includes('curl')) {
       errorMsg = 'Falha ao baixar arquivos. Verifique a conexão com o GitHub.';
     } else if (errorMsg.includes('docker')) {
-      errorMsg = 'Erro ao executar Docker. Verifique se o Docker está instalado.';
+      errorMsg = 'Erro ao executar Docker. Verifique se o Docker está instalado e rodando.';
     }
     
-    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes:\n${error.stack || error}`;
+    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes técnicos:\n${error.stack || error}`;
     status.textContent = `❌ Falha ao instalar: ${errorMsg}`;
     status.style.color = '#ff6b6b';
 
