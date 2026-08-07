@@ -586,9 +586,23 @@ async function installApp(app) {
     if (cockpit) {
       const installDir = `/opt/container-apps/${app.id}`;
 
-      // Pega o profile do FRP_MODE se existir
-      const profile = config.FRP_MODE;
+      // Pega o profile do APP_PROFILE
+      const profile = config.APP_PROFILE || null;
+      // Remove o APP_PROFILE do objeto config para não duplicar no .env
+      const cleanConfig = { ...config };
+      delete cleanConfig.APP_PROFILE;
+
+      // Só adiciona --profile se um perfil foi definido
       const profileArg = profile ? `--profile ${profile}` : '';
+
+      // Log do que está sendo executado
+      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+      if (profile) {
+        logOutput.textContent += `> Perfil selecionado: ${profile}\n`;
+      } else {
+        logOutput.textContent += `> Nenhum perfil selecionado (usando todos os serviços)\n`;
+      }
+      logOutput.textContent += `> Configurações: ${JSON.stringify(cleanConfig, null, 2)}\n\n`;
 
       // Cria um script shell completo com as variáveis
       const script = `
@@ -596,6 +610,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 set -e
 APP_ID='${app.id}'
 DEST_DIR="${installDir}"
+${profile ? `PROFILE="${profile}"` : ''}
 
 echo "📁 Criando diretório: $DEST_DIR"
 mkdir -p "$DEST_DIR"
@@ -607,13 +622,12 @@ curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
 
 echo "📄 Arquivos baixados com sucesso!"
 cd "$DEST_DIR"
-echo "📋 Conteúdo do diretório:"
-ls -la
 
 echo "🔄 Gerando arquivo .env com as configurações..."
-${Object.entries(config).map(([key, value]) => 
+${Object.entries(cleanConfig).map(([key, value]) => 
   `echo "${key}=${value}" >> .env`
 ).join('\n')}
+${profile ? `echo "APP_PROFILE=${profile}" >> .env` : ''}
 
 echo "📋 Arquivo .env criado:"
 cat .env
@@ -624,14 +638,13 @@ echo "🐳 Iniciando container com Docker Compose..."
 echo "✅ Instalação concluída para $APP_ID"
 echo "📍 Container instalado em: $DEST_DIR"
 echo "📋 Configurações aplicadas:"
-${Object.entries(config).map(([key, value]) => 
+${Object.entries(cleanConfig).map(([key, value]) => 
   `echo "  ${key}=${value}"`
 ).join('\n')}
+${profile ? `echo "  APP_PROFILE=${profile}"` : ''}
 `;
 
       status.textContent = '⏳ Executando comandos no servidor...';
-      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
-      logOutput.textContent += `> Configurações: ${JSON.stringify(config, null, 2)}\n\n`;
 
       try {
         const proc = await cockpit.script(script, {
@@ -646,40 +659,55 @@ ${Object.entries(config).map(([key, value]) =>
 
       } catch (scriptError) {
         console.error('Erro no cockpit.script:', scriptError);
+        logOutput.textContent += `\n❌ Erro detalhado:\n${JSON.stringify(scriptError, null, 2)}\n`;
         throw scriptError;
       }
+    } else {
+      // Fallback para quando não está no Cockpit
+      const profile = config.APP_PROFILE || null;
+      const cleanConfig = { ...config };
+      delete cleanConfig.APP_PROFILE;
+      const profileArg = profile ? ` --profile ${profile}` : '';
+
+      const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
+        `mkdir -p /opt/container-apps/${app.id} && \\\n` +
+        `cd /opt/container-apps/${app.id} && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o metadata.yaml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o docker-compose.yml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/config.yml -o config.yml && \\\n` +
+        `${Object.entries(cleanConfig).map(([key, value]) => 
+          `echo "${key}=${value}" >> .env && \\\n`
+        ).join('')}` +
+        `${profile ? `echo "APP_PROFILE=${profile}" >> .env && \\\n` : ''}` +
+        `docker compose --env-file .env${profileArg} up -d`;
+      
+      logOutput.textContent = fallbackMsg;
+      status.textContent = '⚠️ Cockpit não disponível. Comando manual gerado.';
+      status.style.color = '#ffd93d';
     }
 
   } catch (error) {
     console.error('Erro na instalação:', error);
     
-    // === TRATAMENTO DE ERRO MELHORADO ===
     let errorMsg = 'Erro desconhecido';
+    let errorDetails = '';
     
-    // Tenta extrair a mensagem de erro de diferentes fontes
     if (error && typeof error === 'object') {
-      // Para erros do Cockpit (tem 'problem' em vez de 'message')
       if (error.problem) {
         errorMsg = error.problem;
-        // Adiciona detalhes se disponíveis
         if (error.exit_status !== undefined && error.exit_status !== null) {
-          errorMsg += ` (código de saída: ${error.exit_status})`;
+          errorDetails += `Código de saída: ${error.exit_status}\n`;
         }
         if (error.exit_signal) {
-          errorMsg += ` (sinal: ${error.exit_signal})`;
+          errorDetails += `Sinal: ${error.exit_signal}\n`;
         }
-      } 
-      // Para erros com message
-      else if (error.message) {
+      } else if (error.message) {
         errorMsg = error.message;
-      }
-      // Para erros com string
-      else if (typeof error === 'string') {
+      } else if (typeof error === 'string') {
         errorMsg = error;
       }
     }
 
-    // Mapeia mensagens de erro para algo mais amigável
     const errorMap = {
       'not-found': 'Comando não encontrado. Verifique se o Docker está instalado e no PATH.',
       'permission denied': 'Permissão negada. Execute como root ou verifique permissões.',
@@ -687,9 +715,9 @@ ${Object.entries(config).map(([key, value]) =>
       'docker': 'Erro ao executar Docker. Verifique se o Docker está instalado e rodando.',
       'ENOENT': 'Arquivo ou diretório não encontrado.',
       'EACCES': 'Permissão negada para acessar o arquivo/diretório.',
+      'no such file': 'Arquivo não encontrado. Verifique o caminho.',
     };
 
-    // Tenta encontrar um mapeamento para a mensagem de erro
     for (const [key, value] of Object.entries(errorMap)) {
       if (errorMsg.toLowerCase().includes(key.toLowerCase())) {
         errorMsg = value;
@@ -697,7 +725,6 @@ ${Object.entries(config).map(([key, value]) =>
       }
     }
 
-    // Se o erro tiver um problema específico do Cockpit
     if (error.problem === 'authentication-failed') {
       errorMsg = 'Falha de autenticação. Verifique suas credenciais.';
     } else if (error.problem === 'access-denied') {
@@ -706,11 +733,14 @@ ${Object.entries(config).map(([key, value]) =>
 
     logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\n`;
     
-    // Adiciona detalhes técnicos se disponíveis
+    if (errorDetails) {
+      logOutput.textContent += `Detalhes:\n${errorDetails}`;
+    }
+    
     if (error.stack) {
-      logOutput.textContent += `Detalhes técnicos:\n${error.stack}`;
+      logOutput.textContent += `\nStack trace:\n${error.stack}`;
     } else if (error.toString && error.toString() !== '[object Object]') {
-      logOutput.textContent += `Detalhes: ${error.toString()}`;
+      logOutput.textContent += `\nDetalhes: ${error.toString()}`;
     }
     
     status.textContent = `❌ Falha ao instalar: ${errorMsg}`;
