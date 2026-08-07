@@ -158,22 +158,50 @@ function renderDetail(app) {
 async function installApp(app) {
   const status = document.getElementById('install-status');
   const installButton = detailCard.querySelector('.install-button');
-
+  
+  // Desabilita o botão
   if (installButton) {
     installButton.disabled = true;
     installButton.textContent = 'Instalando...';
   }
 
-  // Limpa o log e mostra status inicial
   logOutput.textContent = '';
   status.textContent = '🚀 Iniciando instalação no servidor...';
   showInstallToast();
 
   try {
-    if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+    // === VERIFICAÇÃO CORRETA DO COCKPIT ===
+    let cockpit = null;
+    try {
+      // Tenta obter o cockpit do parent (iframe)
+      if (window.parent && window.parent.cockpit) {
+        cockpit = window.parent.cockpit;
+      } 
+      // Tenta do window atual
+      else if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+        cockpit = window.cockpit;
+      }
+      // Tenta carregar dinamicamente
+      else {
+        const script = document.createElement('script');
+        script.src = '/cockpit/static/base1/cockpit.js';
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+        if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+          cockpit = window.cockpit;
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao acessar Cockpit:', e);
+    }
+
+    if (cockpit) {
+      // === INSTALAÇÃO VIA COCKPIT ===
       const installDir = `/opt/container-apps/${app.id}`;
 
-      // Comando melhorado com mais feedback
       const command = [
         '/bin/bash',
         '-c',
@@ -202,29 +230,22 @@ async function installApp(app) {
         `
       ];
 
-      // Atualiza status
       status.textContent = '⏳ Executando comandos no servidor...';
       logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
-      // Executa com superuser 'require' para garantir permissões
-      const proc = await window.cockpit.spawn(command, { 
+      const proc = await cockpit.spawn(command, { 
         superuser: 'require',
         environ: ['LC_ALL=en_US.UTF-8']
       });
 
-      // Exibe a saída completa
       const output = proc.trim() || '✅ Comando executado sem saída.';
       logOutput.textContent = output;
-      
-      // Atualiza status final
       status.textContent = '✅ Instalação concluída com sucesso!';
       status.style.color = 'var(--accent)';
-      
-      // Mostra toast de sucesso
-      showInstallToast();
 
     } else {
-      // Fallback para quando não está no Cockpit
+      // === FALLBACK MANUAL ===
+      const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
       const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
         `mkdir -p /opt/container-apps/${app.id} && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o /opt/container-apps/${app.id}/metadata.yaml && \\\n` +
@@ -239,31 +260,22 @@ async function installApp(app) {
     }
 
   } catch (error) {
-    // Tratamento de erro detalhado
     console.error('Erro na instalação:', error);
-    
     let errorMsg = error.message || 'Erro desconhecido';
     
-    // Mensagens de erro mais amigáveis
     if (errorMsg.includes('permission denied')) {
       errorMsg = 'Permissão negada. Execute como root ou verifique permissões.';
     } else if (errorMsg.includes('curl')) {
       errorMsg = 'Falha ao baixar arquivos. Verifique a conexão com o GitHub.';
     } else if (errorMsg.includes('docker')) {
       errorMsg = 'Erro ao executar Docker. Verifique se o Docker está instalado.';
-    } else if (errorMsg.includes('No such file')) {
-      errorMsg = 'Arquivo não encontrado. Verifique se o app existe no repositório.';
     }
     
-    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes técnicos:\n${error.stack || error}`;
+    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes:\n${error.stack || error}`;
     status.textContent = `❌ Falha ao instalar: ${errorMsg}`;
     status.style.color = '#ff6b6b';
-    
-    // Mostra toast de erro
-    showInstallToast();
 
   } finally {
-    // Reabilita o botão
     if (installButton) {
       installButton.disabled = false;
       installButton.textContent = 'Instalar no servidor';
