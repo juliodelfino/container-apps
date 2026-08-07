@@ -636,7 +636,6 @@ echo "🐳 Iniciando container com Docker Compose..."
 
 echo "✅ Instalação concluída para $APP_ID´${profile ? ' ('+profile+')' : ''}´"
 echo "📍 Container instalado em: $DEST_DIR"
-echo "📋 Configurações aplicadas:"
 `;
 
       status.textContent = '⏳ Executando comandos no servidor...';
