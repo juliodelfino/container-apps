@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  server:
+    image: snowdreamtech/frps:0.61.1
+    container_name: frp-server
+    restart: "no"
+    network_mode: host
+    environment:
+      - FRP_MODE=${FRP_MODE:-server}
+      - FRP_SERVER_ADDR=${FRP_SERVER_ADDR:-example.com}
+      - FRP_SERVER_PORT=${FRP_SERVER_PORT:-7000}
+      - FRP_BIND_ADDR=${FRP_BIND_ADDR:-0.0.0.0}
+      - FRP_BIND_PORT=${FRP_BIND_PORT:-7000}
+      - FRP_TOKEN=${FRP_TOKEN:-changeme}
+
+  client:
+    image: snowdreamtech/frpc:0.61.1
+    container_name: frp-client
+    restart: "no"
+    network_mode: host
+    environment:
+      - FRP_MODE=${FRP_MODE:-client}
+      - FRP_SERVER_ADDR=${FRP_SERVER_ADDR:-example.com}
+      - FRP_SERVER_PORT=${FRP_SERVER_PORT:-7000}
+      - FRP_TOKEN=${FRP_TOKEN:-changeme}

@@ -1,0 +1,28 @@
+name: FRP Tunnel
+package_name: frp-tunnel-container
+version: 0.61.1
+upstream_version: 0.61.1
+description: FRP Tunnel com servidor e cliente para criar túneis seguros.
+long_description: |
+  App de exemplo para empacotamento de um ambiente FRP com suporte ao lado servidor e ao lado cliente.
+homepage: https://github.com/fatedier/frp
+maintainer: Container Apps Store
+license: Apache-2.0
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - category::network
+debian_section: web
+architecture: all
+web_ui:
+  enabled: false
+  path: /
+  port: 0
+  protocol: http
+default_config:
+  FRP_MODE: server
+  FRP_SERVER_ADDR: example.com
+  FRP_SERVER_PORT: "7000"
+  FRP_TOKEN: changeme
+  FRP_BIND_ADDR: 0.0.0.0
+  FRP_BIND_PORT: "7000"

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cockpit Container Apps</title>
+    <meta
+      name="description"
+      content="Addon Cockpit para buscar apps do repositório e instalar facilmente em containers."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">Cockpit Addon</p>
+        <h1>Container Apps para Cockpit</h1>
+        <p class="hero__copy">
+          Este addon busca apps do repositório, exibe os manifestos e oferece instalação simples
+          com um único clique no servidor onde o Cockpit estiver rodando.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#catalog">Explorar catálogo</a>
+          <a class="btn btn--secondary" href="#manifestos">Ver manifestos</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="filters" id="catalog">
+        <div class="filters__search">
+          <label for="search">Buscar app</label>
+          <input id="search" type="search" placeholder="Nome, categoria ou tag" />
+        </div>
+        <div class="filters__select">
+          <label for="category">Categoria</label>
+          <select id="category">
+            <option value="all">Todas</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="catalog">
+        <div class="catalog__header">
+          <h2>Apps disponíveis</h2>
+          <p id="count">0 apps</p>
+        </div>
+        <div id="app-grid" class="app-grid"></div>
+      </section>
+
+      <section class="detail-card" id="detail-card" aria-live="polite">
+        <div class="detail-card__placeholder">
+          <h3>Selecione um app</h3>
+          <p>Escolha um item do catálogo para ver detalhes de empacotamento e instalação.</p>
+        </div>
+      </section>
+    <script src="./app-store.js"></script>
+  </body>
+</html>
