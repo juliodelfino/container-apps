@@ -158,27 +158,95 @@ function renderDetail(app) {
 async function showConfigModal(app) {
   return new Promise(async (resolve) => {
     // Busca o config.yml do app
-    let configSchema = null;
+    let fields = [];
+    let groupDescription = '';
+
     try {
       const response = await fetch(`${repo}/apps/${app.id}/config.yml`);
       if (response.ok) {
         const yamlText = await response.text();
-        // Parse simples do YAML (apenas para este caso específico)
-        configSchema = parseYamlConfig(yamlText);
+        // Parse mais robusto do YAML
+        const parsed = parseYamlConfigSimple(yamlText);
+        if (parsed && parsed.fields && parsed.fields.length > 0) {
+          fields = parsed.fields;
+          groupDescription = parsed.description || '';
+        }
       }
     } catch (e) {
-      console.warn('Não foi possível carregar config.yml, usando fallback:', e);
+      console.warn('Não foi possível carregar config.yml:', e);
     }
 
     // Se não conseguiu carregar, usa o default_config do apps.json
-    const fields = configSchema?.groups?.[0]?.fields || 
-      Object.keys(app.default_config || {}).map(key => ({
+    if (fields.length === 0 && app.default_config) {
+      fields = Object.keys(app.default_config).map(key => ({
         id: key,
         type: 'string',
         default: app.default_config[key],
         required: true,
         label: key
       }));
+    }
+
+    // Se ainda assim não tiver campos, mostra mensagem de erro
+    if (fields.length === 0) {
+      // Fallback: cria campos a partir do default_config
+      fields = Object.keys(app.default_config || {}).map(key => ({
+        id: key,
+        type: 'string',
+        default: app.default_config[key],
+        required: true,
+        label: key
+      }));
+      
+      if (fields.length === 0) {
+        // Se não tem nenhum campo, mostra mensagem
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          backdrop-filter: blur(4px);
+        `;
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          background: var(--panel-strong);
+          border: 1px solid var(--border);
+          border-radius: 24px;
+          padding: 32px;
+          max-width: 500px;
+          text-align: center;
+        `;
+        modal.innerHTML = `
+          <h3 style="color: var(--text);">Nenhuma configuração disponível</h3>
+          <p style="color: var(--muted);">Este app não possui variáveis configuráveis.</p>
+          <button class="btn btn--primary" style="margin-top: 20px; padding: 10px 24px; border-radius: 999px; background: var(--accent); color: #03211d; border: none; font-weight: 700; cursor: pointer;">Instalar com padrões</button>
+        `;
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        modal.querySelector('button').addEventListener('click', () => {
+          document.body.removeChild(overlay);
+          resolve(app.default_config || {});
+        });
+        
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            document.body.removeChild(overlay);
+            resolve(null);
+          }
+        });
+        return;
+      }
+    }
 
     // Cria o overlay do modal
     const overlay = document.createElement('div');
@@ -217,8 +285,8 @@ async function showConfigModal(app) {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
           <h2 style="margin: 0; color: var(--text);">Configurar ${app.name}</h2>
-          ${configSchema?.groups?.[0]?.description ? 
-            `<p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">${configSchema.groups[0].description}</p>` : 
+          ${groupDescription ? 
+            `<p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">${groupDescription}</p>` : 
             ''}
         </div>
         <button class="modal-close" style="
@@ -359,91 +427,89 @@ async function showConfigModal(app) {
     if (firstInput) {
       setTimeout(() => firstInput.focus(), 100);
     }
-
-    // Efeito hover nos botões
-    modal.querySelector('.modal-install').addEventListener('mouseenter', (e) => {
-      e.target.style.transform = 'translateY(-2px)';
-      e.target.style.boxShadow = '0 8px 24px rgba(94, 231, 212, 0.3)';
-    });
-    modal.querySelector('.modal-install').addEventListener('mouseleave', (e) => {
-      e.target.style.transform = 'none';
-      e.target.style.boxShadow = 'none';
-    });
   });
 }
 
-// Função auxiliar para parse simples de YAML
-function parseYamlConfig(yamlText) {
-  const result = { groups: [{ fields: [] }] };
+// Função de parse YAML simplificada e mais robusta
+function parseYamlConfigSimple(yamlText) {
+  const result = { fields: [] };
   const lines = yamlText.split('\n');
-  let currentGroup = null;
   let currentField = null;
   let inFields = false;
+  let inGroup = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line || line.startsWith('#')) continue;
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    if (!trimmed || trimmed.startsWith('#')) continue;
 
-    if (line === 'groups:') {
+    // Detecta grupo
+    if (trimmed.startsWith('groups:')) {
+      inGroup = true;
       continue;
-    } else if (line.startsWith('- id:')) {
-      currentGroup = { fields: [] };
-      const match = line.match(/id:\s*(.+)/);
-      if (match) currentGroup.id = match[1].trim();
-    } else if (line.startsWith('label:') && currentGroup) {
-      const match = line.match(/label:\s*(.+)/);
-      if (match) currentGroup.label = match[1].trim();
-    } else if (line.startsWith('description:') && currentGroup) {
-      const match = line.match(/description:\s*(.+)/);
-      if (match) currentGroup.description = match[1].trim();
-    } else if (line === 'fields:') {
-      inFields = true;
-    } else if (inFields && line.startsWith('- id:')) {
+    }
+
+    // Detecta início de um field
+    if (trimmed.startsWith('- id:') && inGroup) {
+      if (currentField) {
+        result.fields.push(currentField);
+      }
       currentField = {};
-      const match = line.match(/id:\s*(.+)/);
+      const match = trimmed.match(/id:\s*(.+)/);
       if (match) currentField.id = match[1].trim();
-    } else if (inFields && currentField) {
-      if (line.startsWith('label:')) {
-        const match = line.match(/label:\s*(.+)/);
+      continue;
+    }
+
+    // Propriedades do field
+    if (currentField) {
+      if (trimmed.startsWith('label:')) {
+        const match = trimmed.match(/label:\s*(.+)/);
         if (match) currentField.label = match[1].trim();
-      } else if (line.startsWith('type:')) {
-        const match = line.match(/type:\s*(.+)/);
+      } else if (trimmed.startsWith('type:')) {
+        const match = trimmed.match(/type:\s*(.+)/);
         if (match) currentField.type = match[1].trim();
-      } else if (line.startsWith('default:')) {
-        const match = line.match(/default:\s*(.+)/);
-        if (match) currentField.default = match[1].trim();
-      } else if (line.startsWith('required:')) {
-        const match = line.match(/required:\s*(.+)/);
+      } else if (trimmed.startsWith('default:')) {
+        const match = trimmed.match(/default:\s*(.+)/);
+        if (match) {
+          let value = match[1].trim();
+          // Remove aspas se houver
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
+          } else if (value.startsWith("'") && value.endsWith("'")) {
+            value = value.slice(1, -1);
+          }
+          currentField.default = value;
+        }
+      } else if (trimmed.startsWith('required:')) {
+        const match = trimmed.match(/required:\s*(.+)/);
         if (match) currentField.required = match[1].trim() === 'true';
-      } else if (line.startsWith('min:')) {
-        const match = line.match(/min:\s*(.+)/);
+      } else if (trimmed.startsWith('min:')) {
+        const match = trimmed.match(/min:\s*(.+)/);
         if (match) currentField.min = parseInt(match[1].trim());
-      } else if (line.startsWith('max:')) {
-        const match = line.match(/max:\s*(.+)/);
+      } else if (trimmed.startsWith('max:')) {
+        const match = trimmed.match(/max:\s*(.+)/);
         if (match) currentField.max = parseInt(match[1].trim());
-      } else if (line.startsWith('options:')) {
-        const match = line.match(/options:\s*\[(.*)\]/);
+      } else if (trimmed.startsWith('options:')) {
+        const match = trimmed.match(/options:\s*\[(.*)\]/);
         if (match) {
           currentField.options = match[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
         }
-      } else if (!line.startsWith(' ') && !line.startsWith('\t')) {
-        // Fim do campo
-        if (currentGroup && currentField) {
-          currentGroup.fields.push(currentField);
-          currentField = null;
-        }
-        inFields = false;
+      } else if (trimmed.startsWith('description:') && inGroup) {
+        const match = trimmed.match(/description:\s*(.+)/);
+        if (match) result.description = match[1].trim();
       }
+    }
+
+    // Detecta fim de fields
+    if (trimmed === 'fields:' && inGroup) {
+      inFields = true;
     }
   }
 
-  // Adiciona o último campo
-  if (currentGroup && currentField) {
-    currentGroup.fields.push(currentField);
-  }
-
-  if (currentGroup && currentGroup.fields.length > 0) {
-    result.groups = [currentGroup];
+  // Adiciona o último field
+  if (currentField) {
+    result.fields.push(currentField);
   }
 
   return result;
