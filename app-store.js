@@ -166,7 +166,7 @@ async function showConfigModal(app) {
       if (response.ok) {
         const yamlText = await response.text();
         // Parse mais robusto do YAML
-        const parsed = parseYamlConfigSimple(yamlText);
+        const parsed = parseYamlConfig(yamlText);
         if (parsed && parsed.fields && parsed.fields.length > 0) {
           fields = parsed.fields;
           groupDescription = parsed.description || '';
@@ -189,7 +189,6 @@ async function showConfigModal(app) {
 
     // Se ainda assim não tiver campos, mostra mensagem de erro
     if (fields.length === 0) {
-      // Fallback: cria campos a partir do default_config
       fields = Object.keys(app.default_config || {}).map(key => ({
         id: key,
         type: 'string',
@@ -287,7 +286,7 @@ async function showConfigModal(app) {
           <h2 style="margin: 0; color: var(--text);">Configurar ${app.name}</h2>
           ${groupDescription ? 
             `<p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">${groupDescription}</p>` : 
-            ''}
+            `<p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">Configurações do aplicativo</p>`}
         </div>
         <button class="modal-close" style="
           background: transparent;
@@ -430,84 +429,106 @@ async function showConfigModal(app) {
   });
 }
 
-// Função de parse YAML simplificada e mais robusta
-function parseYamlConfigSimple(yamlText) {
-  const result = { fields: [] };
+// Função de parse YAML
+function parseYamlConfig(yamlText) {
+  const result = { fields: [], description: '' };
   const lines = yamlText.split('\n');
   let currentField = null;
   let inFields = false;
   let inGroup = false;
+  let groupDescription = '';
+  let fieldIndent = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+    const indent = line.match(/^\s*/)[0].length;
     
     if (!trimmed || trimmed.startsWith('#')) continue;
 
-    // Detecta grupo
+    // Detecta início do grupo
     if (trimmed.startsWith('groups:')) {
       inGroup = true;
       continue;
     }
 
-    // Detecta início de um field
-    if (trimmed.startsWith('- id:') && inGroup) {
+    // Detecta propriedades do grupo (antes de fields)
+    if (inGroup && !inFields) {
+      if (trimmed.startsWith('label:')) {
+        const match = trimmed.match(/label:\s*(.+)/);
+        if (match) groupDescription = match[1].trim();
+      } else if (trimmed.startsWith('description:')) {
+        const match = trimmed.match(/description:\s*(.+)/);
+        if (match) groupDescription = match[1].trim();
+      } else if (trimmed === 'fields:') {
+        inFields = true;
+        if (groupDescription) {
+          result.description = groupDescription;
+        }
+        continue;
+      }
+      continue;
+    }
+
+    // Dentro de fields, detecta início de um field
+    if (inFields && trimmed.startsWith('- id:')) {
+      // Se havia um field anterior, adiciona ele
       if (currentField) {
         result.fields.push(currentField);
+        currentField = null;
       }
       currentField = {};
       const match = trimmed.match(/id:\s*(.+)/);
       if (match) currentField.id = match[1].trim();
+      fieldIndent = indent;
       continue;
     }
 
-    // Propriedades do field
-    if (currentField) {
-      if (trimmed.startsWith('label:')) {
-        const match = trimmed.match(/label:\s*(.+)/);
-        if (match) currentField.label = match[1].trim();
-      } else if (trimmed.startsWith('type:')) {
-        const match = trimmed.match(/type:\s*(.+)/);
-        if (match) currentField.type = match[1].trim();
-      } else if (trimmed.startsWith('default:')) {
-        const match = trimmed.match(/default:\s*(.+)/);
-        if (match) {
-          let value = match[1].trim();
-          // Remove aspas se houver
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1);
-          } else if (value.startsWith("'") && value.endsWith("'")) {
-            value = value.slice(1, -1);
+    // Propriedades do field atual
+    if (currentField && inFields) {
+      // Se a indentação é maior que a do field, é propriedade dele
+      if (indent > fieldIndent) {
+        if (trimmed.startsWith('label:')) {
+          const match = trimmed.match(/label:\s*(.+)/);
+          if (match) currentField.label = match[1].trim();
+        } else if (trimmed.startsWith('type:')) {
+          const match = trimmed.match(/type:\s*(.+)/);
+          if (match) currentField.type = match[1].trim();
+        } else if (trimmed.startsWith('default:')) {
+          const match = trimmed.match(/default:\s*(.+)/);
+          if (match) {
+            let value = match[1].trim();
+            if (value.startsWith('"') && value.endsWith('"')) {
+              value = value.slice(1, -1);
+            } else if (value.startsWith("'") && value.endsWith("'")) {
+              value = value.slice(1, -1);
+            }
+            currentField.default = value;
           }
-          currentField.default = value;
+        } else if (trimmed.startsWith('required:')) {
+          const match = trimmed.match(/required:\s*(.+)/);
+          if (match) currentField.required = match[1].trim() === 'true';
+        } else if (trimmed.startsWith('min:')) {
+          const match = trimmed.match(/min:\s*(.+)/);
+          if (match) currentField.min = parseInt(match[1].trim());
+        } else if (trimmed.startsWith('max:')) {
+          const match = trimmed.match(/max:\s*(.+)/);
+          if (match) currentField.max = parseInt(match[1].trim());
+        } else if (trimmed.startsWith('options:')) {
+          const match = trimmed.match(/options:\s*\[(.*)\]/);
+          if (match) {
+            currentField.options = match[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
+          }
         }
-      } else if (trimmed.startsWith('required:')) {
-        const match = trimmed.match(/required:\s*(.+)/);
-        if (match) currentField.required = match[1].trim() === 'true';
-      } else if (trimmed.startsWith('min:')) {
-        const match = trimmed.match(/min:\s*(.+)/);
-        if (match) currentField.min = parseInt(match[1].trim());
-      } else if (trimmed.startsWith('max:')) {
-        const match = trimmed.match(/max:\s*(.+)/);
-        if (match) currentField.max = parseInt(match[1].trim());
-      } else if (trimmed.startsWith('options:')) {
-        const match = trimmed.match(/options:\s*\[(.*)\]/);
-        if (match) {
-          currentField.options = match[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
-        }
-      } else if (trimmed.startsWith('description:') && inGroup) {
-        const match = trimmed.match(/description:\s*(.+)/);
-        if (match) result.description = match[1].trim();
+      } else {
+        // Se a indentação é menor ou igual, saiu do field
+        result.fields.push(currentField);
+        currentField = null;
       }
-    }
-
-    // Detecta fim de fields
-    if (trimmed === 'fields:' && inGroup) {
-      inFields = true;
     }
   }
 
-  // Adiciona o último field
+  // Adiciona o último field se existir
   if (currentField) {
     result.fields.push(currentField);
   }
