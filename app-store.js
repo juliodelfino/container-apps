@@ -11,9 +11,11 @@ let apps = [];
 let selectedAppId = null;
 let toastTimer = null;
 
+const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
+
 async function loadApps() {
   try {
-    const remoteResponse = await fetch('https://raw.githubusercontent.com/juliodelfino/container-apps/main/data/apps.json');
+    const remoteResponse = await fetch(`${repo}/data/apps.json`);
     if (!remoteResponse.ok) {
       throw new Error('Remote catalog not available');
     }
@@ -169,7 +171,6 @@ async function installApp(app) {
 
   try {
     if (window.cockpit && typeof window.cockpit.spawn === 'function') {
-      const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
       const installDir = `/opt/container-apps/${app.id}`;
 
       // Comando melhorado com mais feedback
