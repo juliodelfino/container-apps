@@ -3,6 +3,9 @@ const detailCard = document.getElementById('detail-card');
 const searchInput = document.getElementById('search');
 const categorySelect = document.getElementById('category');
 const countLabel = document.getElementById('count');
+const logModal = document.getElementById('log-modal');
+const logOutput = document.getElementById('log-output');
+const closeLogModal = document.getElementById('close-log-modal');
 
 let apps = [];
 let selectedAppId = null;
@@ -159,15 +162,36 @@ async function installApp(app) {
   }
 
   status.textContent = 'Iniciando instalação no servidor...';
+  openLogModal();
+  logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
   try {
     if (window.cockpit && typeof window.cockpit.spawn === 'function') {
-      const output = await window.cockpit.spawn(['/bin/bash', './scripts/install-app.sh', app.id], { superuser: 'try' });
-      status.textContent = output.trim() || 'Instalação enviada ao servidor.';
+      const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
+      const command = [
+        '/bin/bash',
+        '-c',
+        `set -e
+        APP_ID='${app.id}'
+        DEST_DIR="/opt/container-apps/$APP_ID"
+        mkdir -p "$DEST_DIR"
+        curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
+        curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
+        curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
+        docker compose -f "$DEST_DIR/docker-compose.yml" up -d
+        echo "Instalação concluída para $APP_ID"
+        `
+      ];
+
+      const proc = await window.cockpit.spawn(command, { superuser: 'try' });
+      logOutput.textContent += proc.trim() || 'Comando executado sem saída.';
+      status.textContent = 'Instalação concluída.';
     } else {
-      status.textContent = 'Cockpit não está disponível nesta janela. Instale o addon no servidor para usar a instalação automática.';
+      logOutput.textContent += 'Cockpit não está disponível nesta janela. O comando não pôde ser executado.';
+      status.textContent = 'Cockpit não está disponível nesta janela.';
     }
   } catch (error) {
+    logOutput.textContent += `\nErro: ${error.message || error}`;
     status.textContent = `Falha ao instalar: ${error.message || error}`;
   } finally {
     if (installButton) {
@@ -176,6 +200,22 @@ async function installApp(app) {
     }
   }
 }
+
+function openLogModal() {
+  logOutput.textContent = '';
+  logModal.hidden = false;
+}
+
+function closeLogModalHandler() {
+  logModal.hidden = true;
+}
+
+closeLogModal.addEventListener('click', closeLogModalHandler);
+logModal.addEventListener('click', (event) => {
+  if (event.target === logModal) {
+    closeLogModalHandler();
+  }
+});
 
 function categoryLabel(category) {
   const map = {
