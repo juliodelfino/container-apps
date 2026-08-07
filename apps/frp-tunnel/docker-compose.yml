@@ -14,6 +14,42 @@ services:
       - FRP_BIND_ADDR=${FRP_BIND_ADDR:-0.0.0.0}
       - FRP_BIND_PORT=${FRP_BIND_PORT:-7000}
       - FRP_TOKEN=${FRP_TOKEN:-changeme}
+      - FRP_WEB_PORT=${FRP_WEB_PORT:-7500}
+      - FRP_WEB_USER=${FRP_WEB_USER:-admin}
+      - FRP_WEB_PASS=${FRP_WEB_PASS:-admin}
+    command: >
+      sh -c "
+        mkdir -p /var/log/frp &&
+        if [ ! -f /etc/frp/frps.toml ]; then
+          echo '📝 Criando frps.toml...' &&
+          cat > /etc/frp/frps.toml << 'EOF'
+      bindAddr = \"${FRP_BIND_ADDR:-0.0.0.0}\"
+      bindPort = ${FRP_BIND_PORT:-7000}
+      auth.token = \"${FRP_TOKEN:-changeme}\"
+      
+      webServer.addr = \"0.0.0.0\"
+      webServer.port = ${FRP_WEB_PORT:-7500}
+      webServer.user = \"${FRP_WEB_USER:-admin}\"
+      webServer.password = \"${FRP_WEB_PASS:-admin}\"
+      
+      log.to = \"console\"
+      log.level = \"info\"
+      log.maxDays = 3
+      log.file = \"/var/log/frp/frps.log\"
+      
+      heartbeatTimeout = 90
+      maxPoolCount = 5
+      maxPortsPerClient = 0
+      tcpKeepAlive = 7200
+      
+      EOF
+        echo '✅ frps.toml criado!' &&
+        echo '📋 Configuração do servidor:' &&
+        cat /etc/frp/frps.toml &&
+        echo '' &&
+        echo '🚀 Iniciando servidor FRP...' &&
+        /usr/local/bin/frps -c /etc/frp/frps.toml
+      "
 
   client:
     image: snowdreamtech/frpc:0.61.1
@@ -30,3 +66,45 @@ services:
       - FRP_SERVER_ADDR=${FRP_SERVER_ADDR:-example.com}
       - FRP_SERVER_PORT=${FRP_SERVER_PORT:-7000}
       - FRP_TOKEN=${FRP_TOKEN:-changeme}
+      - FRP_LOCAL_IP=${FRP_LOCAL_IP:-127.0.0.1}
+      - FRP_LOCAL_PORT=${FRP_LOCAL_PORT:-8080}
+      - FRP_REMOTE_PORT=${FRP_REMOTE_PORT:-8080}
+      - FRP_PROXY_NAME=${FRP_PROXY_NAME:-web-proxy}
+    command: >
+      sh -c "
+        mkdir -p /var/log/frp &&
+        if [ ! -f /etc/frp/frpc.toml ]; then
+          echo '📝 Criando frpc.toml...' &&
+          cat > /etc/frp/frpc.toml << 'EOF'
+      serverAddr = \"${FRP_SERVER_ADDR:-127.0.0.1}\"
+      serverPort = ${FRP_SERVER_PORT:-7000}
+      auth.token = \"${FRP_TOKEN:-changeme}\"
+      
+      log.to = \"console\"
+      log.level = \"info\"
+      log.maxDays = 3
+      log.file = \"/var/log/frp/frpc.log\"
+      
+      adminAddr = \"0.0.0.0\"
+      adminPort = ${FRP_WEB_PORT:-7500}
+      adminUser = \"${FRP_WEB_USER:-admin}\"
+      adminPwd = \"${FRP_WEB_PASS:-admin}\"
+      
+      heartbeatInterval = 30
+      heartbeatTimeout = 90
+      
+      [[proxies]]
+      name = \"${FRP_PROXY_NAME:-web-proxy}\"
+      type = \"tcp\"
+      localIP = \"${FRP_LOCAL_IP:-127.0.0.1}\"
+      localPort = ${FRP_LOCAL_PORT:-8080}
+      remotePort = ${FRP_REMOTE_PORT:-8080}
+      
+      EOF
+        echo '✅ frpc.toml criado!' &&
+        echo '📋 Configuração do cliente:' &&
+        cat /etc/frp/frpc.toml &&
+        echo '' &&
+        echo '🚀 Iniciando cliente FRP...' &&
+        /usr/local/bin/frpc -c /etc/frp/frpc.toml
+      "
