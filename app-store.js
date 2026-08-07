@@ -162,39 +162,107 @@ async function installApp(app) {
     installButton.textContent = 'Instalando...';
   }
 
-  status.textContent = 'Iniciando instalação no servidor...';
+  // Limpa o log e mostra status inicial
+  logOutput.textContent = '';
+  status.textContent = '🚀 Iniciando instalação no servidor...';
   showInstallToast();
-  logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
 
   try {
     if (window.cockpit && typeof window.cockpit.spawn === 'function') {
       const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
+      const installDir = `/opt/container-apps/${app.id}`;
+
+      // Comando melhorado com mais feedback
       const command = [
         '/bin/bash',
         '-c',
         `set -e
         APP_ID='${app.id}'
-        DEST_DIR="/opt/container-apps/$APP_ID"
+        DEST_DIR="${installDir}"
+        
+        echo "📁 Criando diretório: $DEST_DIR"
         mkdir -p "$DEST_DIR"
+        
+        echo "📥 Baixando arquivos do app ${app.name}..."
         curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
         curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
         curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
-        docker compose -f "$DEST_DIR/docker-compose.yml" up -d
-        echo "Instalação concluída para $APP_ID"
+        
+        echo "📄 Arquivos baixados com sucesso!"
+        echo "📋 Conteúdo do diretório:"
+        ls -la "$DEST_DIR"
+        
+        echo "🐳 Iniciando container com Docker Compose..."
+        cd "$DEST_DIR"
+        docker compose up -d
+        
+        echo "✅ Instalação concluída para $APP_ID"
+        echo "📍 Container instalado em: $DEST_DIR"
         `
       ];
 
-      const proc = await window.cockpit.spawn(command, { superuser: 'try' });
-      logOutput.textContent += proc.trim() || 'Comando executado sem saída.';
-      status.textContent = 'Instalação concluída.';
+      // Atualiza status
+      status.textContent = '⏳ Executando comandos no servidor...';
+      logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+
+      // Executa com superuser 'require' para garantir permissões
+      const proc = await window.cockpit.spawn(command, { 
+        superuser: 'require',
+        environ: ['LC_ALL=en_US.UTF-8']
+      });
+
+      // Exibe a saída completa
+      const output = proc.trim() || '✅ Comando executado sem saída.';
+      logOutput.textContent = output;
+      
+      // Atualiza status final
+      status.textContent = '✅ Instalação concluída com sucesso!';
+      status.style.color = 'var(--accent)';
+      
+      // Mostra toast de sucesso
+      showInstallToast();
+
     } else {
-      logOutput.textContent += 'Cockpit não está disponível nesta janela. O comando não pôde ser executado.';
-      status.textContent = 'Cockpit não está disponível nesta janela.';
+      // Fallback para quando não está no Cockpit
+      const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
+        `mkdir -p /opt/container-apps/${app.id} && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o /opt/container-apps/${app.id}/metadata.yaml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o /opt/container-apps/${app.id}/docker-compose.yml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/config.yml -o /opt/container-apps/${app.id}/config.yml && \\\n` +
+        `cd /opt/container-apps/${app.id} && \\\n` +
+        `docker compose up -d`;
+      
+      logOutput.textContent = fallbackMsg;
+      status.textContent = '⚠️ Cockpit não disponível. Comando manual gerado.';
+      status.style.color = '#ffd93d';
     }
+
   } catch (error) {
-    logOutput.textContent += `\nErro: ${error.message || error}`;
-    status.textContent = `Falha ao instalar: ${error.message || error}`;
+    // Tratamento de erro detalhado
+    console.error('Erro na instalação:', error);
+    
+    let errorMsg = error.message || 'Erro desconhecido';
+    
+    // Mensagens de erro mais amigáveis
+    if (errorMsg.includes('permission denied')) {
+      errorMsg = 'Permissão negada. Execute como root ou verifique permissões.';
+    } else if (errorMsg.includes('curl')) {
+      errorMsg = 'Falha ao baixar arquivos. Verifique a conexão com o GitHub.';
+    } else if (errorMsg.includes('docker')) {
+      errorMsg = 'Erro ao executar Docker. Verifique se o Docker está instalado.';
+    } else if (errorMsg.includes('No such file')) {
+      errorMsg = 'Arquivo não encontrado. Verifique se o app existe no repositório.';
+    }
+    
+    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes técnicos:\n${error.stack || error}`;
+    status.textContent = `❌ Falha ao instalar: ${errorMsg}`;
+    status.style.color = '#ff6b6b';
+    
+    // Mostra toast de erro
+    showInstallToast();
+
   } finally {
+    // Reabilita o botão
     if (installButton) {
       installButton.disabled = false;
       installButton.textContent = 'Instalar no servidor';
