@@ -653,19 +653,66 @@ ${Object.entries(config).map(([key, value]) =>
   } catch (error) {
     console.error('Erro na instalação:', error);
     
-    let errorMsg = error.message || 'Erro desconhecido';
+    // === TRATAMENTO DE ERRO MELHORADO ===
+    let errorMsg = 'Erro desconhecido';
     
-    if (errorMsg.includes('not-found')) {
-      errorMsg = 'Comando não encontrado. Verifique se o Docker está instalado.';
-    } else if (errorMsg.includes('permission denied')) {
-      errorMsg = 'Permissão negada. Execute como root ou verifique permissões.';
-    } else if (errorMsg.includes('curl')) {
-      errorMsg = 'Falha ao baixar arquivos. Verifique a conexão com o GitHub.';
-    } else if (errorMsg.includes('docker')) {
-      errorMsg = 'Erro ao executar Docker. Verifique se o Docker está instalado e rodando.';
+    // Tenta extrair a mensagem de erro de diferentes fontes
+    if (error && typeof error === 'object') {
+      // Para erros do Cockpit (tem 'problem' em vez de 'message')
+      if (error.problem) {
+        errorMsg = error.problem;
+        // Adiciona detalhes se disponíveis
+        if (error.exit_status !== undefined && error.exit_status !== null) {
+          errorMsg += ` (código de saída: ${error.exit_status})`;
+        }
+        if (error.exit_signal) {
+          errorMsg += ` (sinal: ${error.exit_signal})`;
+        }
+      } 
+      // Para erros com message
+      else if (error.message) {
+        errorMsg = error.message;
+      }
+      // Para erros com string
+      else if (typeof error === 'string') {
+        errorMsg = error;
+      }
+    }
+
+    // Mapeia mensagens de erro para algo mais amigável
+    const errorMap = {
+      'not-found': 'Comando não encontrado. Verifique se o Docker está instalado e no PATH.',
+      'permission denied': 'Permissão negada. Execute como root ou verifique permissões.',
+      'curl': 'Falha ao baixar arquivos. Verifique a conexão com o GitHub.',
+      'docker': 'Erro ao executar Docker. Verifique se o Docker está instalado e rodando.',
+      'ENOENT': 'Arquivo ou diretório não encontrado.',
+      'EACCES': 'Permissão negada para acessar o arquivo/diretório.',
+    };
+
+    // Tenta encontrar um mapeamento para a mensagem de erro
+    for (const [key, value] of Object.entries(errorMap)) {
+      if (errorMsg.toLowerCase().includes(key.toLowerCase())) {
+        errorMsg = value;
+        break;
+      }
+    }
+
+    // Se o erro tiver um problema específico do Cockpit
+    if (error.problem === 'authentication-failed') {
+      errorMsg = 'Falha de autenticação. Verifique suas credenciais.';
+    } else if (error.problem === 'access-denied') {
+      errorMsg = 'Acesso negado. Você não tem permissão para executar este comando.';
+    }
+
+    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\n`;
+    
+    // Adiciona detalhes técnicos se disponíveis
+    if (error.stack) {
+      logOutput.textContent += `Detalhes técnicos:\n${error.stack}`;
+    } else if (error.toString && error.toString() !== '[object Object]') {
+      logOutput.textContent += `Detalhes: ${error.toString()}`;
     }
     
-    logOutput.textContent += `\n❌ Erro: ${errorMsg}\n\nDetalhes técnicos:\n${error.stack || error}`;
     status.textContent = `❌ Falha ao instalar: ${errorMsg}`;
     status.style.color = '#ff6b6b';
 
