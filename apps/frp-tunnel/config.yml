@@ -3,23 +3,12 @@ groups:
     label: General Settings
     description: Configurações básicas do FRP Tunnel
     fields:
-      - id: FRP_MODE
-        label: Mode
+      - id: APP_PROFILE
+        label: App Profile
         type: enum
         default: server
         required: true
         options: [server, client]
-      - id: FRP_SERVER_ADDR
-        label: Server Address
-        type: string
-        default: example.com
-        required: true
-      - id: FRP_SERVER_PORT
-        label: Server Port
-        type: integer
-        default: 7000
-        required: true
-        min: 1
         max: 65535
       - id: FRP_BIND_ADDR
         label: Bind Address

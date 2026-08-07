@@ -586,10 +586,9 @@ async function installApp(app) {
     if (cockpit) {
       const installDir = `/opt/container-apps/${app.id}`;
 
-      // Cria as variáveis de ambiente para o script
-      const envVars = Object.entries(config)
-        .map(([key, value]) => `${key}="${value}"`)
-        .join(' ');
+      // Pega o profile do FRP_MODE se existir
+      const profile = config.FRP_MODE;
+      const profileArg = profile ? `--profile ${profile}` : '';
 
       // Cria um script shell completo com as variáveis
       const script = `
@@ -620,7 +619,7 @@ echo "📋 Arquivo .env criado:"
 cat .env
 
 echo "🐳 Iniciando container com Docker Compose..."
-/usr/bin/docker compose --env-file .env up -d
+/usr/bin/docker compose --env-file .env ${profileArg} up -d
 
 echo "✅ Instalação concluída para $APP_ID"
 echo "📍 Container instalado em: $DEST_DIR"
