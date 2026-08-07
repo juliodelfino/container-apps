@@ -5,6 +5,10 @@ services:
     restart: "no"
     network_mode: host
     profiles: ["server"]
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     volumes:
       - ./data:/etc/frp
       - ./logs:/var/log/frp
@@ -12,6 +16,7 @@ services:
       - FRP_BIND_ADDR=${FRP_BIND_ADDR:-0.0.0.0}
       - FRP_BIND_PORT=${FRP_BIND_PORT:-7000}
       - FRP_TOKEN=${FRP_TOKEN:-changeme}
+      - FRP_TCP_MUX=true
 
   client:
     image: snowdreamtech/frpc:latest
@@ -19,8 +24,13 @@ services:
     restart: "no"
     network_mode: host
     profiles: ["client"]
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     volumes:
       - ./data:/etc/frp
       - ./logs:/var/log/frp
     environment:
       - FRP_TOKEN=${FRP_TOKEN:-changeme}
+      - FRP_TCP_MUX=true
