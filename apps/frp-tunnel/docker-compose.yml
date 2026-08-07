@@ -1,6 +1,6 @@
 services:
   server:
-    image: snowdreamtech/frps:0.61.1
+    image: snowdreamtech/frps:latest
     container_name: frp-server
     restart: "no"
     network_mode: host
@@ -14,7 +14,7 @@ services:
       - FRP_TOKEN=${FRP_TOKEN:-changeme}
 
   client:
-    image: snowdreamtech/frpc:0.61.1
+    image: snowdreamtech/frpc:latest
     container_name: frp-client
     restart: "no"
     network_mode: host
