@@ -629,19 +629,14 @@ ${Object.entries(cleanConfig).map(([key, value]) =>
 ).join('\n')}
 ${profile ? `echo "APP_PROFILE=${profile}" >> .env` : ''}
 
-echo "📋 Arquivo .env criado:"
-cat .env
+echo "📋 Arquivo .env criado!"
 
 echo "🐳 Iniciando container com Docker Compose..."
 /usr/bin/docker compose --env-file .env ${profileArg} up -d
 
-echo "✅ Instalação concluída para $APP_ID"
+echo "✅ Instalação concluída para $APP_ID´${profile ? ' ('+profile+')' : ''}´"
 echo "📍 Container instalado em: $DEST_DIR"
 echo "📋 Configurações aplicadas:"
-${Object.entries(cleanConfig).map(([key, value]) => 
-  `echo "  ${key}=${value}"`
-).join('\n')}
-${profile ? `echo "  APP_PROFILE=${profile}"` : ''}
 `;
 
       status.textContent = '⏳ Executando comandos no servidor...';
