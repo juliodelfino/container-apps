@@ -1,32 +1,9 @@
 [
   {
     "id": "frp-tunnel",
-    "name": "FRP Tunnel",
-    "package_name": "frp-tunnel-container",
-    "version": "0.61.1",
-    "description": "Cliente FRP para criar túneis seguros para serviços locais.",
-    "long_description": "App de exemplo para empacotamento de um túnel FRP com configuração de servidor remoto, porta local e autenticação.",
-    "homepage": "https://github.com/fatedier/frp",
     "category": "network",
     "tags": ["tunnel", "reverse-proxy", "network"],
     "icon": "🔐",
-    "architecture": "all",
-    "license": "Apache-2.0",
-    "web_ui": {
-      "enabled": false,
-      "path": "/",
-      "port": 0,
-      "protocol": "http"
-    },
-    "default_config": {
-      "FRP_SERVER_ADDR": "example.com",
-      "FRP_SERVER_PORT": "7000",
-      "FRP_TOKEN": "changeme"
-    },
-    "manifest": {
-      "metadata": "apps/frp-tunnel/metadata.yaml",
-      "compose": "apps/frp-tunnel/docker-compose.yml",
-      "config": "apps/frp-tunnel/config.yml"
-    }
+    "architecture": "all"
   }
 ]

@@ -14,22 +14,229 @@ let toastTimer = null;
 const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
 
 async function loadApps() {
+  let catalog = [];
+
   try {
     const remoteResponse = await fetch(`${repo}/data/apps.json`);
     if (!remoteResponse.ok) {
       throw new Error('Remote catalog not available');
     }
-    apps = await remoteResponse.json();
+    catalog = await remoteResponse.json();
   } catch (error) {
     const localResponse = await fetch('./data/apps.json');
-    apps = await localResponse.json();
+    catalog = await localResponse.json();
   }
+
+  apps = await Promise.all(
+    catalog.map(async (placeholderApp) => {
+      const appId = placeholderApp.id;
+
+      try {
+        const [metadataText, composeText, configText] = await Promise.all([
+          fetchAppFile(appId, 'metadata.yml'),
+          fetchAppFile(appId, 'docker-compose.yml'),
+          fetchAppFile(appId, 'config.yml')
+        ]);
+
+        const metadata = parseMetadataYaml(metadataText);
+        const configFields = parseYamlConfig(configText);
+
+        return {
+          ...placeholderApp,
+          ...metadata,
+          manifest: {
+            metadata: `apps/${appId}/metadata.yml`,
+            compose: `apps/${appId}/docker-compose.yml`,
+            config: `apps/${appId}/config.yml`
+          },
+          compose: composeText,
+          config: configText,
+          configFields: configFields.fields || [],
+          configDescription: configFields.description || ''
+        };
+      } catch (error) {
+        console.warn(`Não foi possível carregar o app ${appId}:`, error);
+        return {
+          ...placeholderApp,
+          name: placeholderApp.name || appId,
+          description: placeholderApp.description || 'App disponível no repositório.',
+          long_description: placeholderApp.long_description || 'App sem descrição detalhada.',
+          package_name: placeholderApp.package_name || appId,
+          version: placeholderApp.version || 'latest',
+          homepage: placeholderApp.homepage || '#',
+          category: placeholderApp.category || 'tools',
+          tags: placeholderApp.tags || [],
+          icon: placeholderApp.icon || '📦',
+          language: placeholderApp.language || 'unknown',
+          architecture: placeholderApp.architecture || 'all',
+          web_ui: placeholderApp.web_ui || { enabled: false, path: '/', port: 0, protocol: 'http' },
+          default_config: placeholderApp.default_config || {},
+          manifest: {
+            metadata: `apps/${appId}/metadata.yml`,
+            compose: `apps/${appId}/docker-compose.yml`,
+            config: `apps/${appId}/config.yml`
+          },
+          compose: '',
+          config: '',
+          configFields: [],
+          configDescription: ''
+        };
+      }
+    })
+  );
 
   populateCategories();
   renderApps();
   if (apps.length) {
     selectApp(apps[0].id);
   }
+}
+
+async function fetchAppFile(appId, fileName) {
+  const remotePath = `${repo}/apps/${appId}/${fileName}`;
+
+  try {
+    const response = await fetch(remotePath);
+    if (!response.ok) {
+      throw new Error(`Remote ${fileName} unavailable`);
+    }
+    return await response.text();
+  } catch (error) {
+    const localPath = `./apps/${appId}/${fileName}`;
+    const localResponse = await fetch(localPath);
+    if (!localResponse.ok) {
+      throw new Error(`Local ${fileName} unavailable`);
+    }
+    return await localResponse.text();
+  }
+}
+
+function parseMetadataYaml(text) {
+  const app = {};
+  const lines = text.split(/\r?\n/);
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const keyMatch = line.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+    if (!keyMatch) {
+      continue;
+    }
+
+    const key = keyMatch[1];
+    const value = keyMatch[2].trim();
+
+    if (key === 'tags') {
+      if (value && value !== '|' && value !== '>') {
+        app.tags = value
+          .split(/[\s,]+/)
+          .map((tag) => tag.replace(/['"]/g, ''))
+          .filter(Boolean);
+      } else {
+        const tags = [];
+        i += 1;
+        while (i < lines.length && lines[i].trim().startsWith('-')) {
+          tags.push(lines[i].trim().replace(/^-\s*/, ''));
+          i += 1;
+        }
+        i -= 1;
+        app.tags = tags;
+      }
+    } else if (key === 'web_ui') {
+      app.web_ui = { enabled: false, path: '/', port: 0, protocol: 'http' };
+      i += 1;
+      while (i < lines.length && lines[i].trim() !== '') {
+        const nestedLine = lines[i].trim();
+        const nestedMatch = nestedLine.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+        if (nestedMatch) {
+          const nestedKey = nestedMatch[1];
+          const nestedValue = nestedMatch[2].trim();
+          if (nestedKey === 'enabled') {
+            app.web_ui.enabled = nestedValue === 'true';
+          } else if (nestedKey === 'path') {
+            app.web_ui.path = nestedValue;
+          } else if (nestedKey === 'port') {
+            app.web_ui.port = Number(nestedValue);
+          } else if (nestedKey === 'protocol') {
+            app.web_ui.protocol = nestedValue;
+          }
+        } else {
+          break;
+        }
+        i += 1;
+      }
+      i -= 1;
+    } else if (key === 'default_config') {
+      const defaults = {};
+      i += 1;
+      while (i < lines.length && lines[i].trim() !== '') {
+        const nestedLine = lines[i].trim();
+        const nestedMatch = nestedLine.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+        if (nestedMatch) {
+          const nestedKey = nestedMatch[1];
+          const nestedValue = nestedMatch[2].trim();
+          defaults[nestedKey] = nestedValue.replace(/^['"]|['"]$/g, '');
+        } else {
+          break;
+        }
+        i += 1;
+      }
+      i -= 1;
+      app.default_config = defaults;
+    } else if (value === '|' || value === '>') {
+      const blockLines = [];
+      i += 1;
+      while (i < lines.length) {
+        const nextRaw = lines[i];
+        const nextTrimmed = nextRaw.trim();
+        if (!nextTrimmed) {
+          blockLines.push('');
+          i += 1;
+          continue;
+        }
+
+        const nextIndent = nextRaw.match(/^\s*/)[0].length;
+        if (nextIndent === 0 && nextTrimmed.match(/^[A-Za-z0-9_]+:/)) {
+          break;
+        }
+
+        blockLines.push(nextTrimmed);
+        i += 1;
+      }
+      i -= 1;
+      app[key] = blockLines.join('\n').trim();
+    } else if (key === 'name') {
+      app.name = value.replace(/^['"]|['"]$/g, '');
+    } else if (key === 'description') {
+      app.description = value.replace(/^['"]|['"]$/g, '');
+    } else if (key === 'long_description') {
+      app.long_description = value.replace(/^['"]|['"]$/g, '');
+    } else if (key === 'homepage') {
+      app.homepage = value;
+    } else if (key === 'package_name') {
+      app.package_name = value;
+    } else if (key === 'version') {
+      app.version = value;
+    } else if (key === 'upstream_version') {
+      app.upstream_version = value;
+    } else if (key === 'maintainer') {
+      app.maintainer = value;
+    } else if (key === 'license') {
+      app.license = value;
+    } else if (key === 'debian_section') {
+      app.debian_section = value;
+    } else if (key === 'architecture') {
+      app.architecture = value;
+    } else {
+      app[key] = value;
+    }
+  }
+
+  return app;
 }
 
 function populateCategories() {
@@ -157,26 +364,9 @@ function renderDetail(app) {
 
 async function showConfigModal(app) {
   return new Promise(async (resolve) => {
-    // Busca o config.yml do app
-    let fields = [];
-    let groupDescription = '';
+    let fields = Array.isArray(app.configFields) ? app.configFields : [];
+    let groupDescription = app.configDescription || '';
 
-    try {
-      const response = await fetch(`${repo}/apps/${app.id}/config.yml`);
-      if (response.ok) {
-        const yamlText = await response.text();
-        // Parse mais robusto do YAML
-        const parsed = parseYamlConfig(yamlText);
-        if (parsed && parsed.fields && parsed.fields.length > 0) {
-          fields = parsed.fields;
-          groupDescription = parsed.description || '';
-        }
-      }
-    } catch (e) {
-      console.warn('Não foi possível carregar config.yml:', e);
-    }
-
-    // Se não conseguiu carregar, usa o default_config do apps.json
     if (fields.length === 0 && app.default_config) {
       fields = Object.keys(app.default_config).map(key => ({
         id: key,
@@ -616,7 +806,7 @@ echo "📁 Criando diretório: $DEST_DIR"
 mkdir -p "$DEST_DIR"
 
 echo "📥 Baixando arquivos do app ${app.name}..."
-curl -fsSL "${repo}/apps/$APP_ID/metadata.yaml" -o "$DEST_DIR/metadata.yaml"
+curl -fsSL "${repo}/apps/$APP_ID/metadata.yml" -o "$DEST_DIR/metadata.yml"
 curl -fsSL "${repo}/apps/$APP_ID/docker-compose.yml" -o "$DEST_DIR/docker-compose.yml"
 curl -fsSL "${repo}/apps/$APP_ID/config.yml" -o "$DEST_DIR/config.yml"
 
