@@ -26,5 +26,40 @@
     "tags": ["macos", "vm", "virtualization", "qemu", "kvm", "vnc"],
     "icon": "🍎",
     "architecture": "amd64"
+  },
+  {
+    "id": "mysql",
+    "category": "database",
+    "tags": ["mysql", "database", "sql", "mariadb"],
+    "icon": "🐬",
+    "architecture": "all"
+  },
+  {
+    "id": "postgres",
+    "category": "database",
+    "tags": ["postgres", "postgresql", "database", "sql"],
+    "icon": "🐘",
+    "architecture": "all"
+  },
+  {
+    "id": "mongo",
+    "category": "database",
+    "tags": ["mongodb", "mongo", "database", "nosql"],
+    "icon": "🍃",
+    "architecture": "all"
+  },
+  {
+    "id": "homeassistant",
+    "category": "automation",
+    "tags": ["home-assistant", "automation", "smart-home", "iot"],
+    "icon": "🏠",
+    "architecture": "all"
+  },
+  {
+    "id": "mosquitto",
+    "category": "messaging",
+    "tags": ["mqtt", "mosquitto", "broker", "iot", "messaging"],
+    "icon": "📡",
+    "architecture": "all"
   }
 ]

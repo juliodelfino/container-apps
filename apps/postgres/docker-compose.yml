@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:${TAG:-18}
+    container_name: postgres
+    restart: unless-stopped
+    shm_size: 128mb
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+      # Fixado para que o mesmo caminho de dados valha de 14 a 18 (na 18+ o padrão é versionado).
+      - PGDATA=/var/lib/postgresql/data
+      - TZ=${TZ:-UTC}
+    ports:
+      - "${HOST_PORT:-5432}:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data

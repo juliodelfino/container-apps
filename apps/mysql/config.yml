@@ -1,0 +1,43 @@
+groups:
+  - id: general
+    label: MySQL
+    description: Escolha a versão da imagem e as credenciais criadas na instalação.
+    fields:
+      - id: TAG
+        label: Versão / tag da imagem (8.4 e 9.7 = LTS, 26.7 = innovation)
+        type: enum
+        default: "8.4"
+        required: true
+        options: ["8.4", "9.7", "26.7"]
+      - id: HOST_PORT
+        label: Porta
+        type: integer
+        default: 3306
+        required: false
+        min: 1
+        max: 65535
+      - id: MYSQL_ROOT_PASSWORD
+        label: Senha do usuário root
+        type: string
+        default: changeme
+        required: true
+      - id: MYSQL_DATABASE
+        label: Banco de dados criado na instalação
+        type: string
+        default: app
+        required: false
+      - id: MYSQL_USER
+        label: Usuário comum (não pode ser root)
+        type: string
+        default: app
+        required: false
+      - id: MYSQL_PASSWORD
+        label: Senha do usuário comum
+        type: string
+        default: changeme
+        required: false
+      - id: TZ
+        label: Fuso horário (ex.: UTC, America/Sao_Paulo)
+        type: string
+        default: UTC
+        required: false

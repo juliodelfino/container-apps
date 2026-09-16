@@ -1,0 +1,16 @@
+groups:
+  - id: general
+    label: Home Assistant
+    description: Escolha a tag da imagem e o fuso horário usado pelas automações e pelo histórico.
+    fields:
+      - id: TAG
+        label: Versão / tag da imagem
+        type: enum
+        default: stable
+        required: true
+        options: [stable, beta, dev]
+      - id: TZ
+        label: Fuso horário (ex.: America/Sao_Paulo, UTC)
+        type: string
+        default: America/Sao_Paulo
+        required: true

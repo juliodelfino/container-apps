@@ -1,0 +1,17 @@
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:${TAG:-stable}
+    container_name: homeassistant
+    restart: unless-stopped
+    # A documentação oficial pede estes dois ajustes: a rede do host é necessária para
+    # descoberta de dispositivos (mDNS/SSDP) e o privileged libera o acesso a hardware.
+    network_mode: host
+    privileged: true
+    # O encerramento do banco de dados pode passar dos 10s padrão do Docker.
+    stop_grace_period: 60s
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro

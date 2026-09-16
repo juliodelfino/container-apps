@@ -1,0 +1,14 @@
+services:
+  mongo:
+    image: mongo:${TAG:-8.0}
+    container_name: mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-changeme}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE:-app}
+      - TZ=${TZ:-UTC}
+    ports:
+      - "${HOST_PORT:-27017}:27017"
+    volumes:
+      - ./data:/data/db

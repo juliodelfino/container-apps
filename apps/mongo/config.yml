@@ -1,0 +1,38 @@
+groups:
+  - id: general
+    label: MongoDB
+    description: Escolha a versão da imagem e as credenciais criadas na instalação.
+    fields:
+      - id: TAG
+        label: Versão / tag da imagem
+        type: enum
+        default: "8.0"
+        required: true
+        options: ["8.3", "8.0", "7.0"]
+      - id: HOST_PORT
+        label: Porta
+        type: integer
+        default: 27017
+        required: false
+        min: 1
+        max: 65535
+      - id: MONGO_INITDB_ROOT_USERNAME
+        label: Usuário root
+        type: string
+        default: root
+        required: true
+      - id: MONGO_INITDB_ROOT_PASSWORD
+        label: Senha do usuário root
+        type: string
+        default: changeme
+        required: true
+      - id: MONGO_INITDB_DATABASE
+        label: Banco de dados usado pelos scripts de inicialização
+        type: string
+        default: app
+        required: false
+      - id: TZ
+        label: Fuso horário (ex.: UTC, America/Sao_Paulo)
+        type: string
+        default: UTC
+        required: false

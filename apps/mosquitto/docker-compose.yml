@@ -1,0 +1,29 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:${TAG:-latest}
+    container_name: mosquitto
+    restart: unless-stopped
+    environment:
+      - MQTT_USER=${MQTT_USER:-mqtt}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-changeme}
+    ports:
+      - "${HOST_MQTT_PORT:-1883}:1883"
+      - "${HOST_WS_PORT:-9001}:9001"
+    volumes:
+      - ./config:/mosquitto/config
+      - ./data:/mosquitto/data
+      - ./logs:/mosquitto/log
+    # O mosquitto.conf precisa existir antes do broker subir, então ele é criado na
+    # primeira execução (listener 1883, WebSocket em 9001 e autenticação por senha).
+    # Depois disso o arquivo em ./config pode ser editado e o container reiniciado.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /mosquitto/config/mosquitto.conf ]; then
+          printf 'persistence true\npersistence_location /mosquitto/data/\nlog_dest stdout\npassword_file /mosquitto/config/passwd\nallow_anonymous false\n\nlistener 1883\n\nlistener 9001\nprotocol websockets\n' > /mosquitto/config/mosquitto.conf
+        fi
+        if [ ! -f /mosquitto/config/passwd ]; then
+          /usr/bin/mosquitto_passwd -b -c /mosquitto/config/passwd "$${MQTT_USER}" "$${MQTT_PASSWORD}"
+        fi
+        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf

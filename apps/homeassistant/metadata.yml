@@ -1,0 +1,45 @@
+name: Home Assistant
+package_name: homeassistant
+version: stable
+upstream_version: "2026.9"
+description: Plataforma de automação residencial, com interface web na porta 8123.
+long_description: |
+  Home Assistant integra milhares de dispositivos e serviços em uma única interface
+  web. Toda a configuração e o banco de dados ficam em ./config, e a interface é
+  publicada diretamente na porta 8123 do host.
+
+  O container roda com network_mode host e privileged, exatamente como na documentação
+  oficial: isso é o que permite a descoberta de dispositivos na rede (mDNS, SSDP),
+  a integração Bluetooth via D-Bus e o acesso direto a hardware local. Por usar a rede
+  do host, a porta 8123 é a mesma do host e não é parametrizável por aqui — para
+  alterá-la, ajuste http: server_port no configuration.yaml.
+
+  Defina o fuso horário na instalação, pois automações, sensores e o histórico
+  dependem dele. Depois de instalar, acesse http://IP-DO-SERVIDOR:8123 e conclua o
+  onboarding. Para Zigbee/Z-Wave, adicione o device do dongle em "devices:" no
+  docker-compose.yml.
+
+  Observação: esta é a instalação "Home Assistant Container", que não tem acesso a
+  add-ons (Supervisor). Se precisar de add-ons, use o Home Assistant OS em uma VM.
+homepage: https://www.home-assistant.io/
+maintainer: Container Apps Store
+license: Apache-2.0
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::automation
+  - interface::web
+  - home-assistant
+  - smart-home
+  - iot
+  - automation
+debian_section: misc
+architecture: all
+web_ui:
+  enabled: true
+  path: /
+  port: 8123
+  protocol: http
+default_config:
+  TAG: stable
+  TZ: America/Sao_Paulo

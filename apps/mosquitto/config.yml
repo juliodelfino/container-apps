@@ -1,0 +1,35 @@
+groups:
+  - id: general
+    label: Eclipse Mosquitto
+    description: Escolha a tag da imagem, as portas publicadas no host e as credenciais criadas na instalação.
+    fields:
+      - id: TAG
+        label: Versão / tag da imagem (latest = 2.1 alpine; 2.0-openssl = linha OpenSSL)
+        type: enum
+        default: latest
+        required: true
+        options: [latest, 2.1-alpine, 2.0-openssl]
+      - id: HOST_MQTT_PORT
+        label: Porta MQTT
+        type: integer
+        default: 1883
+        required: false
+        min: 1
+        max: 65535
+      - id: HOST_WS_PORT
+        label: Porta WebSocket MQTT
+        type: integer
+        default: 9001
+        required: false
+        min: 1
+        max: 65535
+      - id: MQTT_USER
+        label: Usuário criado na instalação
+        type: string
+        default: mqtt
+        required: true
+      - id: MQTT_PASSWORD
+        label: Senha do usuário
+        type: string
+        default: changeme
+        required: true

@@ -129,6 +129,11 @@ function isNestedLine(rawLine) {
   return rawLine.trim() !== '' && /^\s/.test(rawLine);
 }
 
+// Remove aspas simples ou duplas que envolvem o valor (ex.: version: "8.4").
+function unquote(value) {
+  return String(value).replace(/^['"]|['"]$/g, '');
+}
+
 function parseMetadataYaml(text) {
   const app = {};
   const lines = text.split(/\r?\n/);
@@ -226,27 +231,27 @@ function parseMetadataYaml(text) {
       i -= 1;
       app[key] = blockLines.join('\n').trim();
     } else if (key === 'name') {
-      app.name = value.replace(/^['"]|['"]$/g, '');
+      app.name = unquote(value);
     } else if (key === 'description') {
-      app.description = value.replace(/^['"]|['"]$/g, '');
+      app.description = unquote(value);
     } else if (key === 'long_description') {
-      app.long_description = value.replace(/^['"]|['"]$/g, '');
+      app.long_description = unquote(value);
     } else if (key === 'homepage') {
-      app.homepage = value;
+      app.homepage = unquote(value);
     } else if (key === 'package_name') {
-      app.package_name = value;
+      app.package_name = unquote(value);
     } else if (key === 'version') {
-      app.version = value;
+      app.version = unquote(value);
     } else if (key === 'upstream_version') {
-      app.upstream_version = value;
+      app.upstream_version = unquote(value);
     } else if (key === 'maintainer') {
-      app.maintainer = value;
+      app.maintainer = unquote(value);
     } else if (key === 'license') {
-      app.license = value;
+      app.license = unquote(value);
     } else if (key === 'debian_section') {
-      app.debian_section = value;
+      app.debian_section = unquote(value);
     } else if (key === 'architecture') {
-      app.architecture = value;
+      app.architecture = unquote(value);
     } else {
       app[key] = value;
     }
@@ -989,15 +994,8 @@ function closeInstallToastHandler() {
 closeInstallToast.addEventListener('click', closeInstallToastHandler);
 
 function categoryLabel(category) {
-  const map = {
-    network: 'Rede',
-    monitoring: 'Monitoramento',
-    productivity: 'Produtividade',
-    media: 'Mídia',
-    virtualization: 'Virtualização',
-    tools: 'Ferramentas',
-  };
-  return map[category] || category;
+  if (!category) return '';
+  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 searchInput.addEventListener('input', renderApps);

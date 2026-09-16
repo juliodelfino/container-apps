@@ -1,0 +1,44 @@
+name: PostgreSQL
+package_name: postgres
+version: "18"
+upstream_version: "18"
+description: Banco de dados PostgreSQL em container, com tag selecionável.
+long_description: |
+  Servidor PostgreSQL oficial (imagem postgres do Docker Hub) com dados persistidos em
+  ./data e porta publicada no host. A versão é escolhida na instalação através da tag
+  da imagem, de 14 até a 18.
+
+  O banco POSTGRES_DB e o superusuário POSTGRES_USER são criados na primeira
+  inicialização pelo initdb; essas variáveis só têm efeito com o diretório de dados
+  vazio. O PGDATA é fixado em /var/lib/postgresql/data para que o mesmo caminho de
+  dados funcione em todas as versões (a partir da 18 o padrão da imagem passou a ser
+  versionado).
+
+  Para aplicar uma tag mais antiga depois de já ter dados, use a mesma versão principal
+  ou faça o upgrade com pg_upgrade — dados de uma versão principal mais nova não abrem
+  em versões anteriores.
+homepage: https://hub.docker.com/_/postgres
+maintainer: Container Apps Store
+license: PostgreSQL
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::database
+  - postgres
+  - postgresql
+  - database
+  - sql
+debian_section: misc
+architecture: all
+web_ui:
+  enabled: false
+  path: /
+  port: 0
+  protocol: tcp
+default_config:
+  TAG: "18"
+  HOST_PORT: 5432
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: changeme
+  POSTGRES_DB: app
+  TZ: UTC

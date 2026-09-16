@@ -1,0 +1,43 @@
+name: Eclipse Mosquitto
+package_name: mosquitto
+version: latest
+upstream_version: "2.1"
+description: Broker MQTT em container, com autenticação por usuário e senha.
+long_description: |
+  Eclipse Mosquitto é o broker MQTT (protocolos 5, 3.1.1 e 3.1) da Eclipse Foundation.
+  MQTT é o protocolo padrão de dispositivos IoT, e este broker é o par natural do Home
+  Assistant, Zigbee2MQTT, Node-RED e afins.
+
+  Na primeira execução o container cria automaticamente o ./config/mosquitto.conf com
+  persistência em ./data, listener MQTT na porta 1883, listener WebSocket na porta
+  9001 e autenticação obrigatória. O usuário e a senha escolhidos aqui são gravados em
+  ./config/passwd pelo mosquitto_passwd.
+
+  Depois da primeira execução, ./config/mosquitto.conf pode ser editado livremente
+  (por exemplo para liberar acesso anônimo, criar outros listeners ou habilitar TLS);
+  basta reiniciar o container. As variáveis MQTT_USER e MQTT_PASSWORD só são usadas
+  para criar o arquivo de senhas inicial e não sobrescrevem um arquivo já existente.
+homepage: https://mosquitto.org/
+maintainer: Container Apps Store
+license: EPL-2.0
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::messaging
+  - mqtt
+  - mosquitto
+  - broker
+  - iot
+debian_section: misc
+architecture: all
+web_ui:
+  enabled: false
+  path: /
+  port: 0
+  protocol: tcp
+default_config:
+  TAG: latest
+  HOST_MQTT_PORT: 1883
+  HOST_WS_PORT: 9001
+  MQTT_USER: mqtt
+  MQTT_PASSWORD: changeme

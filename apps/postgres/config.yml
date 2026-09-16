@@ -1,0 +1,38 @@
+groups:
+  - id: general
+    label: PostgreSQL
+    description: Escolha a versão da imagem e as credenciais criadas na instalação.
+    fields:
+      - id: TAG
+        label: Versão / tag da imagem (14 a 18)
+        type: enum
+        default: "18"
+        required: true
+        options: ["18", "17", "16", "15", "14"]
+      - id: HOST_PORT
+        label: Porta
+        type: integer
+        default: 5432
+        required: false
+        min: 1
+        max: 65535
+      - id: POSTGRES_USER
+        label: Superusuário
+        type: string
+        default: postgres
+        required: true
+      - id: POSTGRES_PASSWORD
+        label: Senha do superusuário
+        type: string
+        default: changeme
+        required: true
+      - id: POSTGRES_DB
+        label: Banco de dados criado na instalação
+        type: string
+        default: app
+        required: false
+      - id: TZ
+        label: Fuso horário (ex.: UTC, America/Sao_Paulo)
+        type: string
+        default: UTC
+        required: false

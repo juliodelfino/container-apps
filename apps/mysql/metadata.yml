@@ -1,0 +1,39 @@
+name: MySQL
+package_name: mysql
+version: "8.4"
+upstream_version: "8.4"
+description: Banco de dados MySQL em container, com tag selecionável.
+long_description: |
+  Servidor MySQL oficial (imagem mysql do Docker Hub) com dados persistidos em ./data
+  e porta publicada no host. A versão é escolhida na instalação através da tag da
+  imagem: 8.4 e 9.7 são as séries LTS e 26.7 é a série innovation.
+
+  Na primeira inicialização o container cria o banco definido em MYSQL_DATABASE e o
+  usuário MYSQL_USER com acesso total a ele. As variáveis MYSQL_* só têm efeito
+  quando o diretório de dados está vazio.
+homepage: https://hub.docker.com/_/mysql
+maintainer: Container Apps Store
+license: GPL-2.0
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::database
+  - mysql
+  - database
+  - sql
+  - mariadb-alternative
+debian_section: misc
+architecture: all
+web_ui:
+  enabled: false
+  path: /
+  port: 0
+  protocol: tcp
+default_config:
+  TAG: "8.4"
+  HOST_PORT: 3306
+  MYSQL_ROOT_PASSWORD: changeme
+  MYSQL_DATABASE: app
+  MYSQL_USER: app
+  MYSQL_PASSWORD: changeme
+  TZ: UTC

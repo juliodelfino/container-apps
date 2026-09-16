@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:${TAG:-8.4}
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-changeme}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-app}
+      - MYSQL_USER=${MYSQL_USER:-app}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-changeme}
+      - TZ=${TZ:-UTC}
+    ports:
+      - "${HOST_PORT:-3306}:3306"
+    volumes:
+      - ./data:/var/lib/mysql

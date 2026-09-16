@@ -1,0 +1,39 @@
+name: MongoDB
+package_name: mongo
+version: "8.0"
+upstream_version: "8.0"
+description: Banco de dados MongoDB em container, com tag selecionável.
+long_description: |
+  Servidor MongoDB oficial (imagem mongo do Docker Hub) com dados persistidos em
+  ./data e porta publicada no host. A versão é escolhida na instalação através da tag
+  da imagem: 8.3, 8.0 ou 7.0.
+
+  Quando MONGO_INITDB_ROOT_USERNAME e MONGO_INITDB_ROOT_PASSWORD são definidos, o
+  usuário root é criado no banco de autenticação admin e o MongoDB sobe com
+  autenticação habilitada. Essas variáveis só têm efeito na primeira inicialização,
+  com o diretório de dados vazio.
+homepage: https://hub.docker.com/_/mongo
+maintainer: Container Apps Store
+license: SSPL-1.0
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::database
+  - mongodb
+  - mongo
+  - database
+  - nosql
+debian_section: misc
+architecture: all
+web_ui:
+  enabled: false
+  path: /
+  port: 0
+  protocol: tcp
+default_config:
+  TAG: "8.0"
+  HOST_PORT: 27017
+  MONGO_INITDB_ROOT_USERNAME: root
+  MONGO_INITDB_ROOT_PASSWORD: changeme
+  MONGO_INITDB_DATABASE: app
+  TZ: UTC
