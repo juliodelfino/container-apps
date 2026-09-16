@@ -1,0 +1,54 @@
+groups:
+  - id: general
+    label: Linux
+    description: Escolha a distribuição, os recursos e o acesso remoto da máquina virtual Linux.
+    fields:
+      - id: BOOT
+        label: Distribuição Linux
+        type: enum
+        default: alpine
+        required: true
+        options: [alma, alpine, arch, cachy, centos, debian, fedora, gentoo, kali, kubuntu, mint, manjaro, mx, nixos, suse, rocky, slack, tails, ubuntu, ubuntus, xubuntu, zima, zorin]
+      - id: DISK_SIZE
+        label: Tamanho do disco (ex.: 64G, 128G)
+        type: string
+        default: 64G
+        required: true
+      - id: RAM_SIZE
+        label: Memória RAM (ex.: 2G, 4G, half, max)
+        type: string
+        default: 2G
+        required: true
+      - id: CPU_CORES
+        label: Núcleos de CPU
+        type: integer
+        default: 2
+        required: true
+        min: 1
+        max: 64
+      - id: HOST_WEB_PORT
+        label: Porta externa do visualizador web no host (interna 8006)
+        type: integer
+        default: 8006
+        required: false
+        min: 1
+        max: 65535
+      - id: HOST_SSH_PORT
+        label: Porta externa do SSH no host (interna 22 do guest)
+        type: integer
+        default: 2222
+        required: false
+        min: 1
+        max: 65535
+      - id: HOST_VNC_PORT
+        label: Porta externa do VNC no host (interna 5900)
+        type: integer
+        default: 5900
+        required: false
+        min: 1
+        max: 65535
+      - id: ARGUMENTS
+        label: Argumentos extras do QEMU (ex.: -device usb-tablet)
+        type: string
+        default: ""
+        required: false

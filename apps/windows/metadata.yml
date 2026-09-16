@@ -1,0 +1,45 @@
+name: Windows
+package_name: windows
+version: latest
+upstream_version: "6.05"
+description: Máquina virtual Windows em um container, com instalação automática.
+long_description: |
+  Executa uma máquina virtual Windows completa dentro de um container Docker, usando
+  aceleração por KVM. A instalação do Windows é feita de forma totalmente automática e
+  o sistema pode ser acessado pelo navegador (porta 8006) ou via RDP (porta 3389).
+
+  Requisitos: host Linux com suporte a KVM (/dev/kvm disponível) e ao menos 2 GB de
+  RAM livre e 32 GB de espaço em disco. A primeira inicialização baixa a imagem do
+  Windows e instala o sistema, o que pode levar vários minutos.
+homepage: https://github.com/dockur/windows
+maintainer: Container Apps Store
+license: MIT
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::virtualization
+  - interface::web
+  - windows
+  - vm
+  - kvm
+  - rdp
+debian_section: misc
+architecture: amd64
+web_ui:
+  enabled: true
+  path: /
+  port: 8006
+  protocol: http
+default_config:
+  VERSION: "11"
+  DISK_SIZE: 64G
+  RAM_SIZE: 4G
+  CPU_CORES: 2
+  USERNAME: Docker
+  PASSWORD: admin
+  LANGUAGE: English
+  REGION: en-US
+  KEYBOARD: en-US
+  COMMAND: ""
+  HOST_RDP_PORT: 3389
+  HOST_VNC_PORT: 5900

@@ -1,0 +1,48 @@
+name: macOS
+package_name: macos
+version: latest
+upstream_version: "3.12"
+description: Máquina virtual macOS em um container, com acesso pelo navegador.
+long_description: |
+  Executa uma máquina virtual macOS dentro de um container Docker usando QEMU com
+  aceleração por KVM. Os arquivos de instalação são baixados automaticamente e a
+  instalação é guiada pelo visualizador web na porta 8006 (Utilitário de Disco,
+  apagar o disco em APFS e depois "Reinstalar macOS").
+
+  Depois de instalado, o acesso pode ser feito pelo navegador ou por um cliente VNC
+  na porta 5900.
+
+  Requisitos: host Linux com suporte a KVM (/dev/kvm), processador com AVX2 (Intel
+  Haswell ou AMD Zen/Ryzen 1000 ou superior), ao menos 4 GB de RAM livre e 32 GB de
+  disco. Em processadores AMD, evite atribuir vários núcleos ou mais de 8 GB de RAM
+  antes de concluir a instalação.
+
+  Aviso: o contrato de licença da Apple não permite instalar o macOS em hardware que
+  não seja da Apple, por isso use este container apenas em equipamentos Apple.
+homepage: https://github.com/dockur/macos
+maintainer: Container Apps Store
+license: MIT
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::virtualization
+  - interface::web
+  - macos
+  - vm
+  - kvm
+  - vnc
+debian_section: misc
+architecture: amd64
+web_ui:
+  enabled: true
+  path: /
+  port: 8006
+  protocol: http
+default_config:
+  VERSION: "15"
+  MODEL: iMacPro1,1
+  DISK_SIZE: 64G
+  RAM_SIZE: 4G
+  CPU_CORES: 1
+  HOST_VNC_PORT: 5900
+  ARGUMENTS: ""

@@ -41,46 +41,17 @@ async function loadApps() {
         const metadata = parseMetadataYaml(metadataText);
         const configFields = parseYamlConfig(configText);
 
-        return {
+        return normalizeApp({
           ...placeholderApp,
           ...metadata,
-          manifest: {
-            metadata: `apps/${appId}/metadata.yml`,
-            compose: `apps/${appId}/docker-compose.yml`,
-            config: `apps/${appId}/config.yml`
-          },
           compose: composeText,
           config: configText,
           configFields: configFields.fields || [],
           configDescription: configFields.description || ''
-        };
+        }, appId);
       } catch (error) {
         console.warn(`Não foi possível carregar o app ${appId}:`, error);
-        return {
-          ...placeholderApp,
-          name: placeholderApp.name || appId,
-          description: placeholderApp.description || 'App disponível no repositório.',
-          long_description: placeholderApp.long_description || 'App sem descrição detalhada.',
-          package_name: placeholderApp.package_name || appId,
-          version: placeholderApp.version || 'latest',
-          homepage: placeholderApp.homepage || '#',
-          category: placeholderApp.category || 'tools',
-          tags: placeholderApp.tags || [],
-          icon: placeholderApp.icon || '📦',
-          language: placeholderApp.language || 'unknown',
-          architecture: placeholderApp.architecture || 'all',
-          web_ui: placeholderApp.web_ui || { enabled: false, path: '/', port: 0, protocol: 'http' },
-          default_config: placeholderApp.default_config || {},
-          manifest: {
-            metadata: `apps/${appId}/metadata.yml`,
-            compose: `apps/${appId}/docker-compose.yml`,
-            config: `apps/${appId}/config.yml`
-          },
-          compose: '',
-          config: '',
-          configFields: [],
-          configDescription: ''
-        };
+        return normalizeApp(placeholderApp, appId);
       }
     })
   );
@@ -90,6 +61,48 @@ async function loadApps() {
   if (apps.length) {
     selectApp(apps[0].id);
   }
+}
+
+// Garante que todos os campos usados na interface existam, independente do
+// que veio do catálogo, do metadata.yml ou de uma falha de carregamento.
+function normalizeApp(source, appId) {
+  const app = source || {};
+  const webUi = app.web_ui || {};
+  const defaults = app.default_config;
+
+  return {
+    ...app,
+    id: app.id || appId,
+    name: app.name || appId,
+    description: app.description || 'App disponível no repositório.',
+    long_description: app.long_description || 'App sem descrição detalhada.',
+    package_name: app.package_name || appId,
+    version: app.version || 'latest',
+    homepage: app.homepage || '#',
+    category: app.category || 'tools',
+    tags: Array.isArray(app.tags) ? app.tags : [],
+    icon: app.icon || '📦',
+    language: app.language || 'unknown',
+    architecture: app.architecture || 'all',
+    license: app.license || 'Não informada',
+    maintainer: app.maintainer || 'Não informado',
+    web_ui: {
+      enabled: Boolean(webUi.enabled),
+      path: webUi.path || '/',
+      port: webUi.port || 0,
+      protocol: webUi.protocol || 'http'
+    },
+    default_config: defaults && typeof defaults === 'object' ? defaults : {},
+    configFields: Array.isArray(app.configFields) ? app.configFields : [],
+    configDescription: app.configDescription || '',
+    manifest: app.manifest || {
+      metadata: `apps/${appId}/metadata.yml`,
+      compose: `apps/${appId}/docker-compose.yml`,
+      config: `apps/${appId}/config.yml`
+    },
+    compose: app.compose || '',
+    config: app.config || ''
+  };
 }
 
 async function fetchAppFile(appId, fileName) {
@@ -109,6 +122,11 @@ async function fetchAppFile(appId, fileName) {
     }
     return await localResponse.text();
   }
+}
+
+// Uma linha aninhada é indentada e não vazia; uma linha em coluna 0 inicia nova chave de topo.
+function isNestedLine(rawLine) {
+  return rawLine.trim() !== '' && /^\s/.test(rawLine);
 }
 
 function parseMetadataYaml(text) {
@@ -149,23 +167,22 @@ function parseMetadataYaml(text) {
     } else if (key === 'web_ui') {
       app.web_ui = { enabled: false, path: '/', port: 0, protocol: 'http' };
       i += 1;
-      while (i < lines.length && lines[i].trim() !== '') {
+      while (i < lines.length && isNestedLine(lines[i])) {
         const nestedLine = lines[i].trim();
         const nestedMatch = nestedLine.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
-        if (nestedMatch) {
-          const nestedKey = nestedMatch[1];
-          const nestedValue = nestedMatch[2].trim();
-          if (nestedKey === 'enabled') {
-            app.web_ui.enabled = nestedValue === 'true';
-          } else if (nestedKey === 'path') {
-            app.web_ui.path = nestedValue;
-          } else if (nestedKey === 'port') {
-            app.web_ui.port = Number(nestedValue);
-          } else if (nestedKey === 'protocol') {
-            app.web_ui.protocol = nestedValue;
-          }
-        } else {
+        if (!nestedMatch) {
           break;
+        }
+        const nestedKey = nestedMatch[1];
+        const nestedValue = nestedMatch[2].trim();
+        if (nestedKey === 'enabled') {
+          app.web_ui.enabled = nestedValue === 'true';
+        } else if (nestedKey === 'path') {
+          app.web_ui.path = nestedValue;
+        } else if (nestedKey === 'port') {
+          app.web_ui.port = Number(nestedValue);
+        } else if (nestedKey === 'protocol') {
+          app.web_ui.protocol = nestedValue;
         }
         i += 1;
       }
@@ -173,16 +190,15 @@ function parseMetadataYaml(text) {
     } else if (key === 'default_config') {
       const defaults = {};
       i += 1;
-      while (i < lines.length && lines[i].trim() !== '') {
+      while (i < lines.length && isNestedLine(lines[i])) {
         const nestedLine = lines[i].trim();
         const nestedMatch = nestedLine.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
-        if (nestedMatch) {
-          const nestedKey = nestedMatch[1];
-          const nestedValue = nestedMatch[2].trim();
-          defaults[nestedKey] = nestedValue.replace(/^['"]|['"]$/g, '');
-        } else {
+        if (!nestedMatch) {
           break;
         }
+        const nestedKey = nestedMatch[1];
+        const nestedValue = nestedMatch[2].trim();
+        defaults[nestedKey] = nestedValue.replace(/^['"]|['"]$/g, '');
         i += 1;
       }
       i -= 1;
@@ -256,7 +272,7 @@ function renderApps() {
 
   const filtered = apps.filter((app) => {
     const matchesCategory = category === 'all' || app.category === category;
-    const haystack = `${app.name} ${app.description} ${app.category} ${app.tags.join(' ')}`.toLowerCase();
+    const haystack = `${app.name} ${app.description} ${app.category} ${(app.tags || []).join(' ')}`.toLowerCase();
     const matchesQuery = haystack.includes(query);
     return matchesCategory && matchesQuery;
   });
@@ -303,6 +319,11 @@ function selectApp(id) {
 }
 
 function renderDetail(app) {
+  const webUi = app.web_ui || {};
+  const manifest = app.manifest || {};
+  const defaultConfig = app.default_config || {};
+  const configEntries = Object.entries(defaultConfig);
+
   detailCard.innerHTML = `
     <div class="detail-card__content">
       <div class="detail-card__header">
@@ -332,18 +353,18 @@ function renderDetail(app) {
         <article>
           <h4>Interface web</h4>
           <ul>
-            <li>Habilitada: ${app.web_ui.enabled ? 'Sim' : 'Não'}</li>
-            <li>Caminho: ${app.web_ui.path}</li>
-            <li>Porta: ${app.web_ui.port}</li>
-            <li>Protocolo: ${app.web_ui.protocol}</li>
+            <li>Habilitada: ${webUi.enabled ? 'Sim' : 'Não'}</li>
+            <li>Caminho: ${webUi.path || '/'}</li>
+            <li>Porta: ${webUi.port || 0}</li>
+            <li>Protocolo: ${webUi.protocol || 'http'}</li>
           </ul>
         </article>
         <article>
           <h4>Manifestos</h4>
           <ul>
-            <li><strong>Metadata:</strong> ${app.manifest.metadata}</li>
-            <li><strong>Compose:</strong> ${app.manifest.compose}</li>
-            <li><strong>Config:</strong> ${app.manifest.config}</li>
+            <li><strong>Metadata:</strong> ${manifest.metadata || '—'}</li>
+            <li><strong>Compose:</strong> ${manifest.compose || '—'}</li>
+            <li><strong>Config:</strong> ${manifest.config || '—'}</li>
           </ul>
         </article>
       </div>
@@ -351,9 +372,11 @@ function renderDetail(app) {
       <article>
         <h4>Configuração padrão</h4>
         <ul>
-          ${Object.entries(app.default_config)
-            .map(([key, value]) => `<li><strong>${key}</strong>: ${value}</li>`)
-            .join('')}
+          ${configEntries.length
+            ? configEntries
+                .map(([key, value]) => `<li><strong>${key}</strong>: ${value}</li>`)
+                .join('')
+            : '<li>Nenhuma variável padrão definida.</li>'}
         </ul>
       </article>
     </div>
@@ -726,6 +749,15 @@ function parseYamlConfig(yamlText) {
   return result;
 }
 
+// Gera as linhas do arquivo .env usando aspas simples, para preservar espaços e
+// aspas duplas em valores como o COMMAND do dockur/windows.
+function envFileLines(config, suffix = ' >> .env') {
+  return Object.entries(config).map(([key, value]) => {
+    const safeValue = String(value).replace(/'/g, "'\\''");
+    return `echo '${key}=${safeValue}'${suffix}`;
+  });
+}
+
 async function installApp(app) {
   // Mostra o modal de configuração
   const config = await showConfigModal(app);
@@ -814,9 +846,7 @@ echo "📄 Arquivos baixados com sucesso!"
 cd "$DEST_DIR"
 
 echo "🔄 Gerando arquivo .env com as configurações..."
-${Object.entries(cleanConfig).map(([key, value]) => 
-  `echo "${key}=${value}" >> .env`
-).join('\n')}
+${envFileLines(cleanConfig).join('\n')}
 ${profile ? `echo "APP_PROFILE=${profile}" >> .env` : ''}
 
 echo "📋 Arquivo .env criado!"
@@ -856,12 +886,10 @@ echo "📍 Container instalado em: $DEST_DIR"
       const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
         `mkdir -p /opt/container-apps/${app.id} && \\\n` +
         `cd /opt/container-apps/${app.id} && \\\n` +
-        `curl -fsSL ${repo}/apps/${app.id}/metadata.yaml -o metadata.yaml && \\\n` +
+        `curl -fsSL ${repo}/apps/${app.id}/metadata.yml -o metadata.yml && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o docker-compose.yml && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/config.yml -o config.yml && \\\n` +
-        `${Object.entries(cleanConfig).map(([key, value]) => 
-          `echo "${key}=${value}" >> .env && \\\n`
-        ).join('')}` +
+        `${envFileLines(cleanConfig, ' >> .env && \\\n').join('')}` +
         `${profile ? `echo "APP_PROFILE=${profile}" >> .env && \\\n` : ''}` +
         `docker compose --env-file .env${profileArg} up -d`;
       
@@ -966,6 +994,7 @@ function categoryLabel(category) {
     monitoring: 'Monitoramento',
     productivity: 'Produtividade',
     media: 'Mídia',
+    virtualization: 'Virtualização',
     tools: 'Ferramentas',
   };
   return map[category] || category;

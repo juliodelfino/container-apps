@@ -5,5 +5,26 @@
     "tags": ["tunnel", "reverse-proxy", "network"],
     "icon": "🔐",
     "architecture": "all"
+  },
+  {
+    "id": "windows",
+    "category": "virtualization",
+    "tags": ["windows", "vm", "virtualization", "kvm", "qemu", "rdp"],
+    "icon": "🪟",
+    "architecture": "amd64"
+  },
+  {
+    "id": "qemu",
+    "category": "virtualization",
+    "tags": ["linux", "vm", "virtualization", "qemu", "kvm", "vnc", "ssh"],
+    "icon": "🐧",
+    "architecture": "amd64"
+  },
+  {
+    "id": "macos",
+    "category": "virtualization",
+    "tags": ["macos", "vm", "virtualization", "qemu", "kvm", "vnc"],
+    "icon": "🍎",
+    "architecture": "amd64"
   }
 ]

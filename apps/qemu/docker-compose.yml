@@ -1,0 +1,23 @@
+services:
+  qemu:
+    image: qemux/qemu:latest
+    container_name: qemu
+    restart: always
+    stop_grace_period: 2m
+    environment:
+      - BOOT=${BOOT:-alpine}
+      - DISK_SIZE=${DISK_SIZE:-64G}
+      - RAM_SIZE=${RAM_SIZE:-2G}
+      - CPU_CORES=${CPU_CORES:-2}
+      - ARGUMENTS=${ARGUMENTS:-}
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "${HOST_WEB_PORT:-8006}:8006"
+      - "${HOST_SSH_PORT:-2222}:22"
+      - "${HOST_VNC_PORT:-5900}:5900"
+    volumes:
+      - ./qemu:/storage

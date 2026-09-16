@@ -1,0 +1,46 @@
+name: Linux VM
+package_name: qemu
+version: latest
+upstream_version: "7.50"
+description: Máquina virtual Linux em um container, com acesso pelo navegador.
+long_description: |
+  Executa uma máquina virtual completa dentro de um container Docker usando QEMU com
+  aceleração por KVM. As principais distribuições Linux (Alpine, Ubuntu, Debian, Fedora,
+  Mint, Rocky, entre outras) são baixadas automaticamente na primeira inicialização.
+
+  A instalação do sistema é feita manualmente pelo visualizador web na porta 8006.
+  Depois de instalado, o acesso pode ser feito pelo navegador, por VNC (porta 5900) ou
+  via SSH (porta 2222).
+
+  Requisitos: host Linux com suporte a KVM (/dev/kvm disponível) e espaço em disco
+  suficiente para a imagem do sistema escolhido.
+homepage: https://github.com/qemus/qemu
+maintainer: Container Apps Store
+license: MIT
+tags:
+  - role::container-app
+  - implemented-in::docker
+  - use::virtualization
+  - interface::web
+  - linux
+  - vm
+  - qemu
+  - kvm
+  - vnc
+  - ssh
+debian_section: misc
+architecture: amd64
+web_ui:
+  enabled: true
+  path: /
+  port: 8006
+  protocol: http
+default_config:
+  BOOT: alpine
+  DISK_SIZE: 64G
+  RAM_SIZE: 2G
+  CPU_CORES: 2
+  HOST_WEB_PORT: 8006
+  HOST_SSH_PORT: 2222
+  HOST_VNC_PORT: 5900
+  ARGUMENTS: ""

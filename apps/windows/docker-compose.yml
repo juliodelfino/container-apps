@@ -1,0 +1,29 @@
+services:
+  windows:
+    image: dockurr/windows:latest
+    container_name: windows
+    restart: always
+    stop_grace_period: 2m
+    environment:
+      - VERSION=${VERSION:-11}
+      - DISK_SIZE=${DISK_SIZE:-64G}
+      - RAM_SIZE=${RAM_SIZE:-4G}
+      - CPU_CORES=${CPU_CORES:-2}
+      - USERNAME=${USERNAME:-Docker}
+      - PASSWORD=${PASSWORD:-admin}
+      - LANGUAGE=${LANGUAGE:-English}
+      - REGION=${REGION:-en-US}
+      - KEYBOARD=${KEYBOARD:-en-US}
+      - COMMAND=${COMMAND:-}
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "8006:8006"
+      - "${HOST_RDP_PORT:-3389}:3389/tcp"
+      - "${HOST_RDP_PORT:-3389}:3389/udp"
+      - "${HOST_VNC_PORT:-5900}:5900"
+    volumes:
+      - ./windows:/storage
