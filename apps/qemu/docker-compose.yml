@@ -1,7 +1,7 @@
 services:
   qemu:
     image: qemux/qemu:latest
-    container_name: qemu
+    container_name: ${CONTAINER_NAME:-qemu-1}
     restart: always
     stop_grace_period: 2m
     environment:

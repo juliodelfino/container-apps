@@ -3,6 +3,12 @@ groups:
     label: Eclipse Mosquitto
     description: Escolha a tag da imagem, as portas publicadas no host e as credenciais criadas na instalação.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: mosquitto-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: TAG
         label: Versão / tag da imagem (latest = 2.1 alpine; 2.0-openssl = linha OpenSSL)
         type: enum

@@ -3,6 +3,12 @@ groups:
     label: General Settings
     description: Configurações básicas do FRP Tunnel
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: frp-tunnel-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: APP_PROFILE
         label: App Profile
         type: enum

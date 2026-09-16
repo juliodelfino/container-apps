@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:${TAG:-8.4}
-    container_name: mysql
+    container_name: ${CONTAINER_NAME:-mysql-1}
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-changeme}

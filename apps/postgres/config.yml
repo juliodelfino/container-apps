@@ -3,6 +3,12 @@ groups:
     label: PostgreSQL
     description: Escolha a versão da imagem e as credenciais criadas na instalação.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: postgres-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: TAG
         label: Versão / tag da imagem (14 a 18)
         type: enum

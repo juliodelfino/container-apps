@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo:${TAG:-8.0}
-    container_name: mongo
+    container_name: ${CONTAINER_NAME:-mongo-1}
     restart: unless-stopped
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-root}

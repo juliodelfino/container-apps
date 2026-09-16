@@ -13,6 +13,12 @@ let toastTimer = null;
 
 const repo = 'https://raw.githubusercontent.com/juliodelfino/container-apps/main';
 
+// Cada instalação vive numa pasta própria dentro deste diretório e recebe um
+// nome único (mysql-1, mysql-2, ...) usado no .env e no container_name.
+const INSTALL_ROOT = '/opt/container-apps';
+const INSTANCE_NAME_FIELD = 'CONTAINER_NAME';
+const INSTANCE_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]{0,62}$/;
+
 async function loadApps() {
   let catalog = [];
 
@@ -59,7 +65,8 @@ async function loadApps() {
   populateCategories();
   renderApps();
   if (apps.length) {
-    selectApp(apps[0].id);
+    // Primeira seleção não deve rolar a página.
+    selectApp(apps[0].id, false);
   }
 }
 
@@ -314,13 +321,26 @@ function renderApps() {
   });
 }
 
-function selectApp(id) {
+function selectApp(id, scrollToDetail = true) {
   const app = apps.find((item) => item.id === id);
   if (!app) return;
 
   selectedAppId = id;
   renderApps();
   renderDetail(app);
+
+  if (scrollToDetail) {
+    scrollToDetailCard();
+  }
+}
+
+// Leva o usuário até a descrição do app recém-selecionado.
+function scrollToDetailCard() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  detailCard.scrollIntoView({
+    behavior: reduceMotion ? 'auto' : 'smooth',
+    block: 'start'
+  });
 }
 
 function renderDetail(app) {
@@ -391,80 +411,27 @@ function renderDetail(app) {
 }
 
 async function showConfigModal(app) {
-  return new Promise(async (resolve) => {
-    let fields = Array.isArray(app.configFields) ? app.configFields : [];
-    let groupDescription = app.configDescription || '';
+  let fields = Array.isArray(app.configFields) ? app.configFields.slice() : [];
 
-    if (fields.length === 0 && app.default_config) {
-      fields = Object.keys(app.default_config).map(key => ({
-        id: key,
-        type: 'string',
-        default: app.default_config[key],
-        required: true,
-        label: key
-      }));
-    }
+  // Apps que só declaram default_config no metadata.yml.
+  if (fields.length === 0 && app.default_config) {
+    fields = Object.keys(app.default_config).map(key => ({
+      id: key,
+      type: 'string',
+      default: app.default_config[key],
+      required: true,
+      label: key
+    }));
+  }
 
-    // Se ainda assim não tiver campos, mostra mensagem de erro
-    if (fields.length === 0) {
-      fields = Object.keys(app.default_config || {}).map(key => ({
-        id: key,
-        type: 'string',
-        default: app.default_config[key],
-        required: true,
-        label: key
-      }));
-      
-      if (fields.length === 0) {
-        // Se não tem nenhum campo, mostra mensagem
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0,0,0,0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          backdrop-filter: blur(4px);
-        `;
-        
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-          background: var(--panel-strong);
-          border: 1px solid var(--border);
-          border-radius: 24px;
-          padding: 32px;
-          max-width: 500px;
-          text-align: center;
-        `;
-        modal.innerHTML = `
-          <h3 style="color: var(--text);">Nenhuma configuração disponível</h3>
-          <p style="color: var(--muted);">Este app não possui variáveis configuráveis.</p>
-          <button class="btn btn--primary" style="margin-top: 20px; padding: 10px 24px; border-radius: 999px; background: var(--accent); color: #03211d; border: none; font-weight: 700; cursor: pointer;">Instalar com padrões</button>
-        `;
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-        
-        modal.querySelector('button').addEventListener('click', () => {
-          document.body.removeChild(overlay);
-          resolve(app.default_config || {});
-        });
-        
-        overlay.addEventListener('click', (e) => {
-          if (e.target === overlay) {
-            document.body.removeChild(overlay);
-            resolve(null);
-          }
-        });
-        return;
-      }
-    }
+  // O nome da instância é sempre o primeiro campo, já sugerindo o próximo
+  // nome livre encontrado no servidor.
+  const suggestedName = await detectNextInstanceName(app);
+  fields = withInstanceNameField(fields, suggestedName);
 
+  const groupDescription = app.configDescription || '';
+
+  return new Promise((resolve) => {
     // Cria o overlay do modal
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -573,9 +540,21 @@ async function showConfigModal(app) {
               color: var(--muted);
               margin-top: 4px;
             ">Valor padrão: ${field.default || 'não definido'}</div>
+            ${field.hint ? `
+              <div style="
+                font-size: 0.8rem;
+                color: var(--accent);
+                margin-top: 4px;
+              ">${field.hint}</div>
+            ` : ''}
           </div>
         `).join('')}
       </div>
+      <p class="modal-error" hidden style="
+        color: #ff6b6b;
+        font-size: 0.9rem;
+        margin: 16px 0 0;
+      "></p>
       <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;">
         <button class="btn btn--secondary modal-cancel" style="
           padding: 10px 24px;
@@ -601,6 +580,8 @@ async function showConfigModal(app) {
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    const errorLabel = modal.querySelector('.modal-error');
 
     // Função para fechar o modal
     function closeModal() {
@@ -632,6 +613,17 @@ async function showConfigModal(app) {
           config[field.id] = value || field.default || '';
         }
       });
+
+      // O nome precisa ser válido: ele vira pasta de instalação e container.
+      const instanceName = normalizeInstanceName(config[INSTANCE_NAME_FIELD]);
+      if (!isValidInstanceName(instanceName)) {
+        const nameInput = document.getElementById(`config-${INSTANCE_NAME_FIELD}`);
+        if (nameInput) nameInput.focus();
+        errorLabel.textContent = 'Nome inválido: use letras minúsculas, números, ponto, hífen ou underscore (ex.: mysql-1).';
+        errorLabel.hidden = false;
+        return;
+      }
+      config[INSTANCE_NAME_FIELD] = instanceName;
       
       if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
@@ -639,10 +631,21 @@ async function showConfigModal(app) {
       resolve(config);
     });
 
-    // Aplica foco no primeiro campo
+    // Aplica foco no primeiro campo (o nome da instância)
     const firstInput = modal.querySelector('input, select');
     if (firstInput) {
-      setTimeout(() => firstInput.focus(), 100);
+      setTimeout(() => {
+        firstInput.focus();
+        if (typeof firstInput.select === 'function') firstInput.select();
+      }, 100);
+    }
+
+    // Esconde o aviso assim que o usuário corrige o nome.
+    const nameInput = document.getElementById(`config-${INSTANCE_NAME_FIELD}`);
+    if (nameInput) {
+      nameInput.addEventListener('input', () => {
+        errorLabel.hidden = true;
+      });
     }
   });
 }
@@ -726,6 +729,9 @@ function parseYamlConfig(yamlText) {
         } else if (trimmed.startsWith('required:')) {
           const match = trimmed.match(/required:\s*(.+)/);
           if (match) currentField.required = match[1].trim() === 'true';
+        } else if (trimmed.startsWith('hint:')) {
+          const match = trimmed.match(/hint:\s*(.+)/);
+          if (match) currentField.hint = match[1].trim();
         } else if (trimmed.startsWith('min:')) {
           const match = trimmed.match(/min:\s*(.+)/);
           if (match) currentField.min = parseInt(match[1].trim());
@@ -763,19 +769,161 @@ function envFileLines(config, suffix = ' >> .env') {
   });
 }
 
+// Garante o campo do nome no modal, sempre no topo e já com a sugestão.
+function withInstanceNameField(fields, suggestedName) {
+  const hint = `Sugerido ${suggestedName}. Aceita minúsculas, números, ponto, hífen e underscore — cada nome gera uma instância independente.`;
+  const existing = fields.find((field) => field.id === INSTANCE_NAME_FIELD);
+  const others = fields.filter((field) => field.id !== INSTANCE_NAME_FIELD);
+
+  return [
+    {
+      ...(existing || {}),
+      id: INSTANCE_NAME_FIELD,
+      label: 'Nome do container / instância (pasta em /opt/container-apps)',
+      type: 'string',
+      default: suggestedName,
+      required: true,
+      hint
+    },
+    ...others
+  ];
+}
+
+// Nome final da instalação: o que veio do modal ou o próximo nome livre.
+async function resolveInstanceName(app, config) {
+  const provided = normalizeInstanceName(config[INSTANCE_NAME_FIELD]);
+
+  if (isValidInstanceName(provided)) {
+    return provided;
+  }
+
+  return detectNextInstanceName(app);
+}
+
+// ------------------------- Instâncias no servidor -------------------------
+
+let cockpitPromise = null;
+
+// Obtém o objeto do Cockpit (dentro do addon as vezes é preciso carregar o
+// cockpit.js manualmente).
+async function resolveCockpit() {
+  if (!cockpitPromise) {
+    cockpitPromise = (async () => {
+      try {
+        if (window.parent && window.parent.cockpit) {
+          return window.parent.cockpit;
+        }
+        if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+          return window.cockpit;
+        }
+
+        const script = document.createElement('script');
+        script.src = '/cockpit/static/base1/cockpit.js';
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+
+        if (window.cockpit && typeof window.cockpit.spawn === 'function') {
+          return window.cockpit;
+        }
+      } catch (error) {
+        console.warn('Erro ao acessar Cockpit:', error);
+      }
+
+      return null;
+    })();
+  }
+
+  return cockpitPromise;
+}
+
+// Normaliza o texto digitado para um nome aceito pelo Docker e pelo Compose
+// (minúsculas, sem espaços e sem caracteres especiais).
+function normalizeInstanceName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, '-')
+    .replace(/^[^a-z0-9]+/, '');
+}
+
+function isValidInstanceName(value) {
+  return INSTANCE_NAME_PATTERN.test(String(value || ''));
+}
+
+// Nome base usado no sufixo numérico (mysql -> mysql-1, mysql-2, ...).
+function instanceBaseName(app) {
+  const declared = (app.configFields || []).find((field) => field.id === INSTANCE_NAME_FIELD);
+  const base = normalizeInstanceName(app.id || (declared && declared.default) || 'app');
+  return base.replace(/[-_.]?\d+$/, '') || 'app';
+}
+
+// Procura no servidor qual o próximo nome livre, olhando as pastas de
+// instalação e os containers (mesmo parados) já existentes.
+async function detectNextInstanceName(app) {
+  const base = instanceBaseName(app);
+  const cockpit = await resolveCockpit();
+
+  if (!cockpit || typeof cockpit.script !== 'function') {
+    return `${base}-1`;
+  }
+
+  try {
+    const probe = `
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ls -1 ${INSTALL_ROOT} 2>/dev/null || true
+echo '--- containers ---'
+docker ps -a --format '{{.Names}}' 2>/dev/null || true
+`;
+    const output = await cockpit.script(probe, { superuser: 'require', err: 'out' });
+    const prefix = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`^${prefix}-(\\d+)`);
+    const used = new Set();
+
+    String(output)
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .forEach((name) => {
+        const match = name.match(pattern);
+        if (match) {
+          used.add(Number(match[1]));
+        }
+      });
+
+    let index = 1;
+    while (used.has(index)) {
+      index += 1;
+    }
+
+    return `${base}-${index}`;
+  } catch (error) {
+    console.warn('Não foi possível verificar instâncias existentes:', error);
+    return `${base}-1`;
+  }
+}
+
 async function installApp(app) {
+  const status = document.getElementById('install-status');
+  status.style.color = '';
+  status.textContent = '🔎 Verificando instâncias já existentes no servidor...';
+
   // Mostra o modal de configuração
   const config = await showConfigModal(app);
-  
+
   // Se o usuário cancelou, interrompe a instalação
   if (config === null) {
-    const status = document.getElementById('install-status');
     status.textContent = '⏸️ Instalação cancelada pelo usuário.';
     status.style.color = '#ffd93d';
     return;
   }
 
-  const status = document.getElementById('install-status');
+  // O nome escolhido vira a pasta de instalação e o container_name do compose.
+  const instanceName = await resolveInstanceName(app, config);
+  config[INSTANCE_NAME_FIELD] = instanceName;
+  const installDir = `${INSTALL_ROOT}/${instanceName}`;
+
   const installButton = detailCard.querySelector('.install-button');
   
   if (installButton) {
@@ -784,35 +932,13 @@ async function installApp(app) {
   }
 
   logOutput.textContent = '';
-  status.textContent = '🚀 Iniciando instalação com configurações personalizadas...';
+  status.textContent = `🚀 Instalando ${app.name} como ${instanceName}...`;
   showInstallToast();
 
   try {
-    let cockpit = null;
-    try {
-      if (window.parent && window.parent.cockpit) {
-        cockpit = window.parent.cockpit;
-      } else if (window.cockpit && typeof window.cockpit.spawn === 'function') {
-        cockpit = window.cockpit;
-      } else {
-        const script = document.createElement('script');
-        script.src = '/cockpit/static/base1/cockpit.js';
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-        if (window.cockpit && typeof window.cockpit.spawn === 'function') {
-          cockpit = window.cockpit;
-        }
-      }
-    } catch (e) {
-      console.warn('Erro ao acessar Cockpit:', e);
-    }
+    const cockpit = await resolveCockpit();
 
     if (cockpit) {
-      const installDir = `/opt/container-apps/${app.id}`;
-
       // Pega o profile do APP_PROFILE
       const profile = config.APP_PROFILE || null;
       // Remove o APP_PROFILE do objeto config para não duplicar no .env
@@ -824,6 +950,7 @@ async function installApp(app) {
 
       // Log do que está sendo executado
       logOutput.textContent = `> Baixando arquivos do app ${app.name} do repositório remoto...\n`;
+      logOutput.textContent += `> Instância: ${instanceName} (pasta ${installDir})\n`;
       if (profile) {
         logOutput.textContent += `> Perfil selecionado: ${profile}\n`;
       } else {
@@ -889,8 +1016,8 @@ echo "📍 Container instalado em: $DEST_DIR"
       const profileArg = profile ? ` --profile ${profile}` : '';
 
       const fallbackMsg = `⚠️ Cockpit não está disponível. Execute manualmente:\n\n` +
-        `mkdir -p /opt/container-apps/${app.id} && \\\n` +
-        `cd /opt/container-apps/${app.id} && \\\n` +
+        `mkdir -p ${installDir} && \\\n` +
+        `cd ${installDir} && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/metadata.yml -o metadata.yml && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/docker-compose.yml -o docker-compose.yml && \\\n` +
         `curl -fsSL ${repo}/apps/${app.id}/config.yml -o config.yml && \\\n` +

@@ -3,6 +3,12 @@ groups:
     label: MySQL
     description: Escolha a versão da imagem e as credenciais criadas na instalação.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: mysql-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: TAG
         label: Versão / tag da imagem (8.4 e 9.7 = LTS, 26.7 = innovation)
         type: enum

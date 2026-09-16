@@ -3,6 +3,12 @@ groups:
     label: Windows
     description: Defina a versão, os recursos e as credenciais da máquina virtual do Windows.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: windows-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: VERSION
         label: Versão do Windows
         type: enum

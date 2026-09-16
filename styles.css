@@ -214,6 +214,8 @@ select {
 .detail-card {
   margin-top: 24px;
   padding: 24px;
+  /* Respiro ao rolar a descrição para o topo da viewport. */
+  scroll-margin-top: 24px;
 }
 
 .detail-card__placeholder {

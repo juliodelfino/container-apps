@@ -3,6 +3,12 @@ groups:
     label: Home Assistant
     description: Escolha a tag da imagem e o fuso horário usado pelas automações e pelo histórico.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: homeassistant-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: TAG
         label: Versão / tag da imagem
         type: enum

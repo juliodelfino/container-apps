@@ -3,6 +3,12 @@ groups:
     label: Linux
     description: Escolha a distribuição, os recursos e o acesso remoto da máquina virtual Linux.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: qemu-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: BOOT
         label: Distribuição Linux
         type: enum

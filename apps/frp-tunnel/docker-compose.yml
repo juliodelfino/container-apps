@@ -1,7 +1,8 @@
 services:
   server:
     image: snowdreamtech/frps:latest
-    container_name: frp-server
+    # O nome da instância vem do .env; o sufixo separa os perfis server/client.
+    container_name: ${CONTAINER_NAME:-frp-tunnel-1}-server
     restart: "no"
     network_mode: host
     profiles: ["server"]
@@ -15,7 +16,8 @@ services:
 
   client:
     image: snowdreamtech/frpc:latest
-    container_name: frp-client
+    # O nome da instância vem do .env; o sufixo separa os perfis server/client.
+    container_name: ${CONTAINER_NAME:-frp-tunnel-1}-client
     restart: "no"
     network_mode: host
     profiles: ["client"]

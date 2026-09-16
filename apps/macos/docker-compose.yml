@@ -1,7 +1,7 @@
 services:
   macos:
     image: dockurr/macos:latest
-    container_name: macos
+    container_name: ${CONTAINER_NAME:-macos-1}
     restart: always
     stop_grace_period: 2m
     environment:

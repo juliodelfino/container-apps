@@ -3,6 +3,12 @@ groups:
     label: macOS
     description: Escolha a versão, o modelo e os recursos da máquina virtual do macOS.
     fields:
+      - id: CONTAINER_NAME
+        label: Nome do container / instância (define a pasta em /opt/container-apps)
+        type: string
+        default: macos-1
+        required: true
+        hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
       - id: VERSION
         label: Versão do macOS
         type: enum

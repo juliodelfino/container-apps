@@ -1,7 +1,7 @@
 services:
   homeassistant:
     image: homeassistant/home-assistant:${TAG:-stable}
-    container_name: homeassistant
+    container_name: ${CONTAINER_NAME:-homeassistant-1}
     restart: unless-stopped
     # A documentação oficial pede estes dois ajustes: a rede do host é necessária para
     # descoberta de dispositivos (mDNS/SSDP) e o privileged libera o acesso a hardware.

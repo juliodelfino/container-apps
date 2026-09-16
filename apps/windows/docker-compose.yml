@@ -1,7 +1,7 @@
 services:
   windows:
     image: dockurr/windows:latest
-    container_name: windows
+    container_name: ${CONTAINER_NAME:-windows-1}
     restart: always
     stop_grace_period: 2m
     environment:

@@ -1,7 +1,7 @@
 services:
   mosquitto:
     image: eclipse-mosquitto:${TAG:-latest}
-    container_name: mosquitto
+    container_name: ${CONTAINER_NAME:-mosquitto-1}
     restart: unless-stopped
     environment:
       - MQTT_USER=${MQTT_USER:-mqtt}
