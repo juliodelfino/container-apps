@@ -9,6 +9,7 @@ services:
       - MODEL=${MODEL:-iMacPro1,1}
       - DISK_SIZE=${DISK_SIZE:-64G}
       - RAM_SIZE=${RAM_SIZE:-4G}
+      - CPU_MODEL=${CPU_MODEL:-Penryn}
       - CPU_CORES=${CPU_CORES:-1}
       - ARGUMENTS=${ARGUMENTS:-}
     devices:

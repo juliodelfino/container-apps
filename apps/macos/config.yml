@@ -12,7 +12,7 @@ groups:
       - id: VERSION
         label: Versão do macOS
         type: enum
-        default: "15"
+        default: "13"
         required: true
         options: ["15", "14", "13", "12", "11"]
       - id: MODEL
@@ -28,12 +28,12 @@ groups:
       - id: RAM_SIZE
         label: Memória RAM (ex.: 4G, 8G, half, max)
         type: string
-        default: 4G
+        default: 8G
         required: true
       - id: CPU_CORES
         label: Núcleos de CPU
         type: integer
-        default: 1
+        default: 4
         required: true
         min: 1
         max: 64
