@@ -28,7 +28,7 @@ groups:
       - id: RAM_SIZE
         label: Memória RAM (ex.: 4G, 8G, half, max)
         type: string
-        default: 16G
+        default: 32G
         required: true
       - id: CPU_CORES
         label: Núcleos de CPU
