@@ -8,9 +8,8 @@ services:
       - VERSION=${VERSION:-15}
       - MODEL=${MODEL:-iMacPro1,1}
       - DISK_SIZE=${DISK_SIZE:-64G}
-      - RAM_SIZE=${RAM_SIZE:-32G}
-      - CPU_MODEL=${CPU_MODEL:-Penryn}
-      - CPU_CORES=${CPU_CORES:-8}
+      - RAM_SIZE=${RAM_SIZE:-4G}
+      - CPU_CORES=${CPU_CORES:-2}
       - ARGUMENTS=${ARGUMENTS:-}
     devices:
       - /dev/kvm

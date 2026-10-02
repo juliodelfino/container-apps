@@ -12,10 +12,14 @@ long_description: |
   Depois de instalado, o acesso pode ser feito pelo navegador ou por um cliente VNC
   na porta 5900.
 
+  Por padrão, a VM recebe 4 GB de RAM e 2 núcleos virtuais; o modelo de CPU é
+  selecionado automaticamente para o host. Se o consumo de CPU continuar muito alto,
+  confirme que /dev/kvm está disponível e que a aceleração KVM foi iniciada, pois sem
+  ela o QEMU pode recorrer à emulação por software.
+
   Requisitos: host Linux com suporte a KVM (/dev/kvm), processador com AVX2 (Intel
-  Haswell ou AMD Zen/Ryzen 1000 ou superior), ao menos 4 GB de RAM livre e 32 GB de
-  disco. Em processadores AMD, evite atribuir vários núcleos ou mais de 8 GB de RAM
-  antes de concluir a instalação.
+  Haswell ou AMD Zen/Ryzen 1000 ou superior), ao menos 4 GB de RAM disponível para a
+  VM e 32 GB de disco.
 
   Aviso: o contrato de licença da Apple não permite instalar o macOS em hardware que
   não seja da Apple, por isso use este container apenas em equipamentos Apple.
@@ -42,7 +46,7 @@ default_config:
   VERSION: "15"
   MODEL: iMacPro1,1
   DISK_SIZE: 64G
-  RAM_SIZE: 32G
-  CPU_CORES: 8
+  RAM_SIZE: 4G
+  CPU_CORES: 2
   HOST_VNC_PORT: 5900
   ARGUMENTS: ""

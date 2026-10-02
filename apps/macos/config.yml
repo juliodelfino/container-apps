@@ -28,16 +28,15 @@ groups:
       - id: RAM_SIZE
         label: Memória RAM (ex.: 4G, 8G, half, max)
         type: string
-        default: 32G
+        default: 4G
         required: true
       - id: CPU_CORES
         label: Núcleos de CPU
         type: integer
-        default: 8
+        default: 2
         required: true
         min: 1
-        max: 64
-      - id: HOST_VNC_PORT
+        max: 64      - id: HOST_VNC_PORT
         label: Porta externa do VNC no host (interna 5900)
         type: integer
         default: 5900
