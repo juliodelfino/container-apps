@@ -36,7 +36,8 @@ groups:
         default: 2
         required: true
         min: 1
-        max: 64      - id: HOST_VNC_PORT
+        max: 64      
+      - id: HOST_VNC_PORT
         label: Porta externa do VNC no host (interna 5900)
         type: integer
         default: 5900
