@@ -1,24 +1,25 @@
 services:
   macos:
-    image: dockurr/macos:latest
+    image: container-apps/docker-osx-vnc:latest
+    build:
+      context: https://github.com/sickcodes/Docker-OSX.git#master:vnc-version
     container_name: ${CONTAINER_NAME:-macos-1}
-    restart: always
+    restart: unless-stopped
     stop_grace_period: 2m
     environment:
-      - VERSION=${VERSION:-15}
-      - MODEL=${MODEL:-iMacPro1,1}
-      - DISK_SIZE=${DISK_SIZE:-64G}
-      - RAM_SIZE=${RAM_SIZE:-4G}
-      - CPU_CORES=${CPU_CORES:-2}
-      - ARGUMENTS=${ARGUMENTS:-}
+      - SHORTNAME=${SHORTNAME:-sequoia}
+      - RAM=${RAM:-4}
+      - SMP=${SMP:-1}
+      - CORES=${CORES:-1}
+      - CPU=${CPU:-Haswell-noTSX}
+      - CPUID_FLAGS=${CPUID_FLAGS:-kvm=on,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on}
+      - IMAGE_PATH=/storage/mac_hdd_ng.img
+      - EXTRA=${EXTRA:-}
+    privileged: true
     devices:
       - /dev/kvm
-      - /dev/net/tun
-    cap_add:
-      - NET_ADMIN
     ports:
-      - "8006:8006"
-      - "${HOST_VNC_PORT:-5900}:5900/tcp"
-      - "${HOST_VNC_PORT:-5900}:5900/udp"
+      - "127.0.0.1:${HOST_VNC_PORT:-8888}:5999"
+      - "${HOST_SSH_PORT:-50922}:10022"
     volumes:
       - ./macos:/storage

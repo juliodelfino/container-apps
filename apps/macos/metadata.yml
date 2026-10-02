@@ -1,36 +1,33 @@
 name: macOS
 package_name: macos
 version: latest
-upstream_version: "3.12"
-description: Máquina virtual macOS em um container, com acesso pelo navegador.
+upstream_version: "6.0"
+description: Máquina virtual macOS baseada no Docker-OSX, acessível por VNC.
 long_description: |
-  Executa uma máquina virtual macOS dentro de um container Docker usando QEMU com
-  aceleração por KVM. Os arquivos de instalação são baixados automaticamente e a
-  instalação é guiada pelo visualizador web na porta 8006 (Utilitário de Disco,
-  apagar o disco em APFS e depois "Reinstalar macOS").
+  Executa o Docker-OSX oficial com QEMU e aceleração por KVM. A imagem VNC é
+  construída a partir do diretório vnc-version do projeto upstream. O disco da VM
+  fica em ./macos/mac_hdd_ng.img e permanece salvo ao recriar o container.
 
-  Depois de instalado, o acesso pode ser feito pelo navegador ou por um cliente VNC
-  na porta 5900.
+  Acesse a tela com um cliente VNC em localhost:8888 (ou na porta configurada).
+  A porta fica vinculada ao loopback porque o VNC não criptografa o tráfego; para
+  acesso remoto, use um túnel SSH até o host. A senha VNC aleatória é exibida durante
+  o build da imagem e também pode ser consultada dentro do container em
+  /home/arch/OSX-KVM/vncpasswd_file. A porta 50922 encaminha SSH para a VM; habilite
+  Acesso Remoto nas configurações do macOS para utilizá-la.
 
-  Por padrão, a VM recebe 4 GB de RAM e 2 núcleos virtuais; o modelo de CPU é
-  selecionado automaticamente para o host. Se o consumo de CPU continuar muito alto,
-  confirme que /dev/kvm está disponível e que a aceleração KVM foi iniciada, pois sem
-  ela o QEMU pode recorrer à emulação por software.
+  Por padrão, a VM recebe 4 GB de RAM e 1 CPU virtual para limitar o consumo. A
+  instalação da imagem VNC requer Docker Compose com suporte a builds de contexto Git,
+  host Linux x86_64 com KVM (/dev/kvm) e pelo menos 50 GB livres para as imagens.
 
-  Requisitos: host Linux com suporte a KVM (/dev/kvm), processador com AVX2 (Intel
-  Haswell ou AMD Zen/Ryzen 1000 ou superior), ao menos 4 GB de RAM disponível para a
-  VM e 32 GB de disco.
+  Aviso: confira os termos de licença da Apple antes de instalar o macOS neste host.
 
-  Aviso: o contrato de licença da Apple não permite instalar o macOS em hardware que
-  não seja da Apple, por isso use este container apenas em equipamentos Apple.
-homepage: https://github.com/dockur/macos
+homepage: https://github.com/sickcodes/Docker-OSX
 maintainer: Container Apps Store
-license: MIT
+license: GPL-3.0-or-later
 tags:
   - role::container-app
   - implemented-in::docker
   - use::virtualization
-  - interface::web
   - macos
   - vm
   - kvm
@@ -38,15 +35,15 @@ tags:
 debian_section: misc
 architecture: amd64
 web_ui:
-  enabled: true
+  enabled: false
   path: /
-  port: 8006
+  port: 0
   protocol: http
 default_config:
-  VERSION: "15"
-  MODEL: iMacPro1,1
-  DISK_SIZE: 64G
-  RAM_SIZE: 4G
-  CPU_CORES: 2
-  HOST_VNC_PORT: 5900
+  SHORTNAME: sequoia
+  RAM: "4"
+  SMP: "1"
+  CORES: "1"
+  HOST_VNC_PORT: "8888"
+  HOST_SSH_PORT: "50922"
   ARGUMENTS: ""

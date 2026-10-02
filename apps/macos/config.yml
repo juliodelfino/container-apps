@@ -1,7 +1,7 @@
 groups:
   - id: general
     label: macOS
-    description: Escolha a versão, o modelo e os recursos da máquina virtual do macOS.
+    description: Escolha a versão do macOS, os recursos e as portas VNC/SSH da VM.
     fields:
       - id: CONTAINER_NAME
         label: Nome do container / instância (define a pasta em /opt/container-apps)
@@ -9,43 +9,49 @@ groups:
         default: macos-1
         required: true
         hint: Pode ser alterado na hora de criar o container; cada nome gera uma instância independente.
-      - id: VERSION
-        label: Versão do macOS
+      - id: SHORTNAME
+        label: Versão do macOS (Docker-OSX)
         type: enum
-        default: "15"
+        default: sequoia
         required: true
-        options: ["15", "14", "13", "12", "11"]
-      - id: MODEL
-        label: Modelo do Mac usado pelo OpenCore (ex.: iMacPro1,1)
-        type: string
-        default: iMacPro1,1
-        required: false
-      - id: DISK_SIZE
-        label: Tamanho do disco (ex.: 64G, 128G)
-        type: string
-        default: 64G
-        required: true
-      - id: RAM_SIZE
-        label: Memória RAM (ex.: 4G, 8G, half, max)
-        type: string
-        default: 4G
-        required: true
-      - id: CPU_CORES
-        label: Núcleos de CPU
+        options: [sequoia, sonoma, ventura, monterey, big-sur, catalina, mojave, high-sierra]
+      - id: RAM
+        label: Memória RAM da VM (em GB)
         type: integer
-        default: 2
+        default: 4
+        required: true
+        min: 3
+        max: 128
+      - id: SMP
+        label: CPUs virtuais (SMP)
+        type: integer
+        default: 1
         required: true
         min: 1
-        max: 64      
-      - id: HOST_VNC_PORT
-        label: Porta externa do VNC no host (interna 5900)
+        max: 64
+      - id: CORES
+        label: Núcleos por socket
         type: integer
-        default: 5900
-        required: false
+        default: 1
+        required: true
+        min: 1
+        max: 64
+      - id: HOST_VNC_PORT
+        label: Porta local do VNC no host (interna 5999)
+        type: integer
+        default: 8888
+        required: true
+        min: 1024
+        max: 65535
+      - id: HOST_SSH_PORT
+        label: Porta SSH da VM no host (interna 10022)
+        type: integer
+        default: 50922
+        required: true
         min: 1
         max: 65535
       - id: ARGUMENTS
-        label: Argumentos extras do QEMU (ex.: -device usb-tablet)
+        label: Argumentos extras do QEMU (Docker-OSX EXTRA)
         type: string
         default: ""
         required: false
